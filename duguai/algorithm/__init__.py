@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-机器学习训练相关包
+斗地主算法包
 """
 from .call_landlord import LandlordClassifier
 

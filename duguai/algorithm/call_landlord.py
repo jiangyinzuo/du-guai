@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-叫地主相关
+叫地主算法
 """
-import numpy as np
 from copy import deepcopy
 
-from card import *
+from card_def import *
 
 
 class LandlordClassifier:

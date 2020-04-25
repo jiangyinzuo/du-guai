@@ -1,33 +1,5 @@
-class Cards(object):
-    """
-    一副扑克牌类,54张排,abcd四种花色,小王14-a,大王15-a
-    """
 
-    def __init__(self):
-        # 初始化扑克牌类型
-        self.cards_type = ['1-a-12', '1-b-12', '1-c-12', '1-d-12',
-                           '2-a-13', '2-b-13', '2-c-13', '2-d-13',
-                           '3-a-1', '3-b-1', '3-c-1', '3-d-1',
-                           '4-a-2', '4-b-2', '4-c-2', '4-d-2',
-                           '5-a-3', '5-b-3', '5-c-3', '5-d-3',
-                           '6-a-4', '6-b-4', '6-c-4', '6-d-4',
-                           '7-a-5', '7-b-5', '7-c-5', '7-d-5',
-                           '8-a-6', '8-b-6', '8-c-6', '8-d-6',
-                           '9-a-7', '9-b-7', '9-c-7', '9-d-7',
-                           '10-a-8', '10-b-8', '10-c-8', '10-d-8',
-                           '11-a-9', '11-b-9', '11-c-9', '11-d-9',
-                           '12-a-10', '12-b-10', '12-c-10', '12-d-10',
-                           '13-a-11', '13-b-11', '13-c-11', '13-d-11',
-                           '14-a-14', '15-a-15']
-        # 初始化扑克牌类
-        self.cards = self.get_cards()
-
-    # 初始化扑克牌类
-    def get_cards(self):
-        cards = []
-        for card_type in self.cards_type:
-            cards.append(Card(card_type))
-        return cards
+import card_def
 
 
 class Card(object):
@@ -35,22 +7,16 @@ class Card(object):
     扑克牌类
     """
 
-    def __init__(self, card_type):
-        self.card_type = card_type
-        # 名称
-        self.name = self.card_type.split('-')[0]
-        # 花色
-        self.color = self.card_type.split('-')[1]
-        # 大小
-        self.rank = int(self.card_type.split('-')[2])
+    def __init__(self, s_card):
+        self.rank = s_card
+        self.name = card_def.CARD_VIEW[s_card]
 
+    # 判断大小
     def bigger_than(self, card_instance):
-        """
-        判断大小
-        :param card_instance:
-        :return:
-        """
-        return self.rank > card_instance.rank
+        if (self.rank > card_instance.rank):
+            return True
+        else:
+            return False
 
 
 class Moves(object):
@@ -80,12 +46,9 @@ class Moves(object):
         # 下次出牌类型
         self.next_moves_type = []
 
+    # 获取全部出牌列表
     def get_total_moves(self, cards_left):
-        """
-        获取全部出牌列表
-        :param cards_left:
-        :return:
-        """
+
         # 统计牌数量/顺序/王牌信息
         for i in cards_left:
             # 王牌信息
@@ -160,14 +123,14 @@ class Moves(object):
             len_total = len(i)
             n = len_total - 5
             # 遍历所有可能顺子长度
-            while n > 0:
+            while (n > 0):
                 len_sub = len_total - n
                 j = 0
-                while len_sub + j <= len(i):
+                while (len_sub + j <= len(i)):
                     # 遍历该长度所有组合
                     shunzi_sub.append(i[j:len_sub + j])
-                    j += 1
-                n -= 1
+                    j = j + 1
+                n = n - 1
         self.shunzi.extend(shunzi_sub)
 
     # 获取下次出牌列表
@@ -181,7 +144,7 @@ class Moves(object):
                 for move in move_type:
                     self.next_moves.append(move)
                     self.next_moves_type.append(moves_types[i])
-                i += 1
+                i = i + 1
         # 出单
         elif last_move_type == "dan":
             for move in self.dan:

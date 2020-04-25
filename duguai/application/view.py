@@ -4,7 +4,7 @@
 """
 import numpy as np
 
-from card import CARD_VIEW
+from card_def import CARD_VIEW
 
 
 def get_cards_view(cards: np.ndarray) -> str:
