@@ -1,5 +1,5 @@
+
 import card_def
-from .utils import card_show
 
 
 class Card(object):
@@ -13,7 +13,7 @@ class Card(object):
 
     # 判断大小
     def bigger_than(self, card_instance):
-        if self.rank > card_instance.rank:
+        if (self.rank > card_instance.rank):
             return True
         else:
             return False
@@ -123,10 +123,10 @@ class Moves(object):
             len_total = len(i)
             n = len_total - 5
             # 遍历所有可能顺子长度
-            while n > 0:
+            while (n > 0):
                 len_sub = len_total - n
                 j = 0
-                while len_sub + j <= len(i):
+                while (len_sub + j <= len(i)):
                     # 遍历该长度所有组合
                     shunzi_sub.append(i[j:len_sub + j])
                     j = j + 1
@@ -206,45 +206,3 @@ class Moves(object):
                 self.next_moves_type.append("bomb")
 
         return self.next_moves_type, self.next_moves
-
-
-class PlayRecords(object):
-    """
-    扑克牌记录类
-    """
-
-    def __init__(self):
-        # 当前手牌
-        self.cards_left1 = []
-        self.cards_left2 = []
-        self.cards_left3 = []
-
-        # 可能出牌选择
-        self.next_moves1 = []
-        self.next_moves2 = []
-        self.next_moves3 = []
-
-        # 出牌记录
-        self.next_move1 = []
-        self.next_move2 = []
-        self.next_move3 = []
-
-        # 出牌记录
-        self.records = []
-
-        # 胜利者
-        # winner=0,1,2,3 0表示未结束,1,2,3表示winner
-        self.winner = 0
-
-        # 出牌者
-        self.player = 1
-
-    # 展示
-    def show(self, info):
-        print(info)
-        card_show(self.cards_left1, "player 1", 1)
-        card_show(self.cards_left2, "player 2", 1)
-        card_show(self.cards_left3, "player 3", 1)
-        # card_show(self.records, "record", 3)
-
-# TODO AI出牌策略
