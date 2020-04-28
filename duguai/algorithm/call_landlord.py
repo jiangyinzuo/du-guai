@@ -68,6 +68,7 @@ class LandlordClassifier:
         :return: 叫: True; 不叫: False
         """
         if self.__ghost + self.__card_2_count >= 5:
+        #if self.__ghost + self.__card_2_count + self.__combo_count >= 7:
             return True
         # TODO 叫地主
         return False
