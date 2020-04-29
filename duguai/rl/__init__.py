@@ -1,1 +1,4 @@
-# TODO reinforce learning module
+# -*- coding: utf-8 -*-
+"""
+reinforce learning module
+"""
