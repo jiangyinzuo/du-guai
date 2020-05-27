@@ -1,52 +1,10 @@
 import copy
 import time
+
+from ..mcts.backups import monte_carlo
+from ..mcts.default_policies import random_terminal_roll_out
 from ..mcts.mcts import MCTS
 from ..mcts.tree_policies import UCB1
-from ..mcts.default_policies import random_terminal_roll_out
-from ..mcts.backups import monte_carlo
-import numpy as np
-from shuffle import shuffle
-from call_landlord import LandlordClassifier
-from player import Player
-
-# 发牌
-def game_init(players, playrecords, cards, train):
-        #if train:
-        # 洗牌
-        cards=shuffle()
-        c1=cards[0:17]
-        c2=cards[17:34]
-        c3=cards[34:51]
-        if LandlordClassifier(c1).call_landlord():
-            c1+=cards[51:54]
-        elif LandlordClassifier(c2).call_landlord():
-            c2+=cards[51:54]
-        elif LandlordClassifier(c3).call_landlord():
-            c3+=cards[51:54]
-        else:
-            c1+=cards[51:54]
-        p1=Player(c1.sort(), 'p1')
-        p2=Player(c2.sort(), 'p2')
-        p3=Player(c3.sort(), 'p3')
-        
-        #players[0].cards_left = playrecords.cards_left1 = p1_cards
-        #players[1].cards_left = playrecords.cards_left2 = p2_cards
-        #players[2].cards_left = playrecords.cards_left3 = p3_cards
-    '''
-    else:
-        # 洗牌
-        np.random.shuffle(cards.cards)
-        # 排序
-        p1_cards = cards.cards[:20]
-        p1_cards.sort(key=lambda x: x.rank)
-        p2_cards = cards.cards[20:37]
-        p2_cards.sort(key=lambda x: x.rank)
-        p3_cards = cards.cards[37:]
-        p3_cards.sort(key=lambda x: x.rank)
-        players[0].cards_left = playrecords.cards_left1 = p1_cards
-        players[1].cards_left = playrecords.cards_left2 = p2_cards
-        players[2].cards_left = playrecords.cards_left3 = p3_cards
-    '''
 
 
 # 展示扑克函数

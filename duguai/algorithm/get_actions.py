@@ -1,4 +1,6 @@
 import numpy as np
+
+
 def get_actions(next_moves, actions_lookuptable, game):
     """
     0-14: 单出， 1-13，小王，大王
@@ -18,12 +20,12 @@ def get_actions(next_moves, actions_lookuptable, game):
             key.append(int(card))
         key.sort()
         actions.append(actions_lookuptable[str(key)])
-    
-    #yaobuqi
+
+    # yaobuqi
     if len(actions) == 0:
         actions.append(430)
-    #buyao
+    # buyao
     elif game.last_move != "start":
         actions.append(429)
-        
+
     return actions

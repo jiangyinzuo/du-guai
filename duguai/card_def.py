@@ -4,8 +4,6 @@
 """
 from enum import Enum
 
-import numpy as np
-
 CARD_3, CARD_4, CARD_5, CARD_6, CARD_7 = 1, 2, 3, 4, 5
 CARD_8, CARD_9, CARD_10, CARD_J, CARD_Q = 6, 7, 8, 9, 10
 CARD_K, CARD_A, CARD_2, CARD_G0, CARD_G1 = 11, 12, 13, 14, 15
@@ -36,15 +34,3 @@ class CardType(Enum):
     TRI_WITH_DOUBLE = 5
     STRAIGHT = 6
     BOMB = 7
-
-
-class CardWrapper:
-
-    def __init__(self, raw_cards: np.ndarray):
-        self.__raw_cards = raw_cards
-        self.__card_type = None
-
-    def init_card_type(self):
-        if self.__raw_cards.shape[0] <= 4:
-            self.__card_type = CardType(self.__raw_cards.shape[0])
-        # TODO 卡牌类型
