@@ -6,7 +6,7 @@ game_env = GameEnv()
 
 
 def test_game_env():
-    result = game_env._GameEnv__shuffle()
-    assert len(result) == 4
-    assert len(result[0]) == len(result[1]) == len(result[2]) == 17
-    assert len(result[3]) == 3
+    game_env.shuffle()
+    assert len(game_env.cards) == 4
+    assert len(game_env.cards[0]) == len(game_env.cards[1]) == len(game_env.cards[2]) == 17
+    assert len(game_env.cards[3]) == 3

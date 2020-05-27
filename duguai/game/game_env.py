@@ -93,7 +93,7 @@ class GameEnv:
         assert len(self.players) == 3, "开始游戏前先添加玩家"
         self.__call_landlord()
 
-    def __shuffle(self) -> None:
+    def shuffle(self) -> None:
         """
         洗牌
         """
@@ -106,15 +106,15 @@ class GameEnv:
     def __call_landlord(self):
         print('进入叫地主环节')
         while self.land_lord == -1:
-            self.__shuffle()
-            print("游戏开始\n地主将获得的3张牌: {}".format(cards_view(self.cards[3])))
+            self.shuffle()
             for player in self.players:
                 if player.call_landlord():
                     self.land_lord = self.turn
                     print('玩家{}叫了地主'.format(self.turn))
+                    print("地主将获得的3张牌: {}".format(cards_view(self.cards[3])))
                     self.cards[self.turn] = np.concatenate([self.cards[self.turn], self.cards[3]])
                     break
-                self.turn += 1
+                self.turn = (self.turn + 1) % 3
 
 
 class Human(GameEnv.AbstractPlayer):
