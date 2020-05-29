@@ -11,7 +11,7 @@ from game.game_env import GameEnv, cards_view
 if __name__ == '__main__':
     g = GameEnv()
 
-    with open('call_landlord.csv', 'a') as f:
+    with open('../notebook/call_landlord.csv', 'a') as f:
         while True:
             g.shuffle()
             print(cards_view(g.cards[0]))
