@@ -2,6 +2,6 @@
 """
 斗地主算法包
 """
-from .call_landlord import LandlordClassifier
+from .call_landlord import process
 
-__all__ = ['LandlordClassifier']
+__all__ = ['process']
