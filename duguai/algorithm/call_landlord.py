@@ -3,6 +3,7 @@
 叫地主算法
 """
 import numpy as np
+from sklearn.svm import LinearSVC
 
 from duguai.card_def import *
 
@@ -47,3 +48,29 @@ def process(raw_data: np.ndarray) -> np.ndarray:
     """
     return np.array([has_g(raw_data), bomb_count(raw_data), card2_count(raw_data)])
 
+
+def get_svc() -> LinearSVC:
+    """
+    获取训练出来的支持向量机分类器
+    @return: LinearSVC
+    """
+    svc = LinearSVC(5.24e-05)
+    svc.n_iter_ = 7
+    svc.coef_ = np.array([[0.19581239, 0.03330529, 0.10988893]])
+    svc.classes_ = np.array([0, 1])
+    svc.intercept_ = np.array([-0.06151605])
+    return svc
+
+
+class CardZscore:
+    def __init__(self, mean, scale):
+        self.mean = mean
+        self.scale = scale
+
+    def zscore(self, X):
+        return (X - self.mean) / self.scale
+
+
+def get_card_zscore():
+    return CardZscore(np.array([0.95726285, 0.09313241, 1.24184783]),
+                      np.array([1.02556338, 0.29399838, 0.90237814]))

@@ -9,7 +9,9 @@ from typing import List
 
 import numpy as np
 
+from algorithm.call_landlord import get_svc, get_card_zscore, process
 from card_def import CARD_VIEW
+from duguai import mode
 
 
 class GameEnv:
@@ -133,6 +135,33 @@ class Human(GameEnv.AbstractPlayer):
         """
         print('玩家{}的手牌:'.format(self.order), cards_view(self.cards))
         return input('输入1叫地主, 输入其它键不叫地主') == '1'
+
+    def follow(self) -> None:
+        pass
+
+    def play(self) -> None:
+        pass
+
+
+class Robot(GameEnv.AbstractPlayer):
+    """
+    AI，由机器学习算法决定操作
+    @author 江胤佐
+    """
+
+    def __init__(self, game_env: GameEnv, order: int):
+        super().__init__(game_env, order)
+        self.svc = get_svc()
+        self.card_zscore = get_card_zscore()
+
+    def call_landlord(self) -> bool:
+        """
+        AI叫地主
+        @return: 叫: True; 不叫: False
+        """
+        if mode == 'debug':
+            print('AI{}的手牌:'.format(self.order), cards_view(self.cards))
+        return self.svc.predict(self.card_zscore.zscore([process(self.cards), ])) == 1
 
     def follow(self) -> None:
         pass
