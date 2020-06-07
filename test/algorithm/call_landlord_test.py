@@ -10,7 +10,7 @@ def test_call_landlord():
     landlord_clf = LandlordClassifier()
     landlord_clf.fit(shuffle(17))
 
-    ghosts: np.ndarray = landlord_clf.cards[-2:]
+    ghosts: np.ndarray = landlord_clf.hand[-2:]
     if landlord_clf.ghost == 3:
         assert CARD_G0 in ghosts and CARD_G1 in ghosts
     elif landlord_clf.ghost == 2:

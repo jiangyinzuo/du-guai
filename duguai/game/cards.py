@@ -169,9 +169,20 @@ class Combo:
     def is_valid(self) -> bool:
         """
         本次出牌是否合法
-        @return: 合法: True; 非法: False
         """
         return self._bit_info != INVALID_BIT
+
+    def is_not_empty(self) -> bool:
+        """
+        本次出牌是否不为空过
+        """
+        return self._bit_info >= 0
+
+    def is_rocket(self) -> bool:
+        """
+        是否为王炸
+        """
+        return self._bit_info == ROCKET_BIT
 
     @property
     def cards_view(self) -> str:
@@ -251,13 +262,14 @@ class Combo:
     def bit_is_valid(cur_bit: int, former_bit: int) -> bool:
         if cur_bit == ROCKET_BIT:
             return True
+        if former_bit == ROCKET_BIT:
+            return False
         if Combo.is_bomb(cur_bit):
             return not Combo.is_bomb(former_bit) or Combo.bit_value_lt(cur_bit, former_bit)
 
         return Combo.bit_type_eq(cur_bit, former_bit) and Combo.bit_value_lt(cur_bit, former_bit)
 
     def __gt__(self, other: Combo):
-        print(self)
         return Combo.bit_is_valid(self._bit_info, other._bit_info)
 
     def __repr__(self):

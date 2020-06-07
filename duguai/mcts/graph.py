@@ -75,8 +75,6 @@ class StateNode(Node):
         raise ValueError("Untried actions can not be set.")
 
     def get_reward(self):
-        # if self.game.playrecords.winner == 0:
-        #    return 0
         if self.game.playrecords.winner == 1:
             return 1
         else:

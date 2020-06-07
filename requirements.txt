@@ -1,2 +1,4 @@
 pytest
-numpy
+numpy~=1.18.3
+scikit-learn~=0.21.3
+python-dotenv~=0.13.0
