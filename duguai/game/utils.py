@@ -40,7 +40,7 @@ def card_show(cards, info, n):
                 for j in i[1]:
                     tmp_name.append(j.name + j.color)
                 tmp.append(tmp_name)
-            except:
+            except Exception:
                 tmp.append(i[1])
             names.append(tmp)
         print(names)

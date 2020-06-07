@@ -5,8 +5,8 @@
 一行代表一次叫地主结果。一行共18个数字，其中前17个数代表牌的大小，
 最后一个数1代表叫地主，0代表不叫
 """
-from game.game_env import GameEnv, cards_view
-
+from game.cards import cards_view
+from game.game_env import GameEnv
 
 if __name__ == '__main__':
     g = GameEnv()

@@ -1,4 +1,4 @@
-import card_def
+from . import cards
 from .utils import card_show
 
 
@@ -9,7 +9,7 @@ class Card(object):
 
     def __init__(self, s_card):
         self.rank = s_card
-        self.name = card_def.CARD_VIEW[s_card]
+        self.name = cards.CARD_VIEW[s_card]
 
     # 判断大小
     def bigger_than(self, card_instance):
@@ -103,7 +103,7 @@ class Moves(object):
                 if dui[0].name != san[0].name:
                     self.san_dai_er.append(san + dui)
 
-                    # 获取最长顺子
+        # 获取最长顺子
         max_len = []
         for i in self.card_order_info:
             if i == self.card_order_info[0]:

@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 import numpy as np
+from application.shuffle import shuffle
 
 from algorithm import LandlordClassifier
-from application.shuffle import shuffle
-from card_def import CARD_G0, CARD_G1
+from game.cards import CARD_G0, CARD_G1
 
 
 def test_call_landlord():

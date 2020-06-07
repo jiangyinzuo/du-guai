@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 """
-叫地主算法
+叫地主算法。该模块包含的魔法值均为已经通过SVM训练出来的参数。
+训练过程见 项目目录/notebook/call_landlord.ipynb
+
+@author: 江胤佐
 """
-import numpy as np
 from sklearn.svm import LinearSVC
 
-from duguai.card_def import *
+from game.cards import *
 
 
 def has_g(raw_data: np.ndarray) -> int:
@@ -62,15 +64,14 @@ def get_svc() -> LinearSVC:
     return svc
 
 
-class CardZscore:
-    def __init__(self, mean, scale):
-        self.mean = mean
-        self.scale = scale
-
-    def zscore(self, X):
-        return (X - self.mean) / self.scale
+__MEAN = np.array([0.95726285, 0.09313241, 1.24184783])
+__SCALE = np.array([1.02556338, 0.29399838, 0.90237814])
 
 
-def get_card_zscore():
-    return CardZscore(np.array([0.95726285, 0.09313241, 1.24184783]),
-                      np.array([1.02556338, 0.29399838, 0.90237814]))
+def z_score(X):
+    """
+    标准化X数组
+    @param X: 待预测的数组
+    @return: 标准化后的数组
+    """
+    return (X - __MEAN) / __SCALE
