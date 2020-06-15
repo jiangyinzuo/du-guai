@@ -52,3 +52,16 @@ def card_to_di(card: np.ndarray) -> Tuple[Dict[int, list], int, int]:
             max_count = k
             value = max(v)
     return di, max_count, value
+
+
+def card_to_suffix_di(card: np.ndarray) -> Tuple[Dict[int, list], int, int]:
+    """
+    获取统计卡牌后缀数量的字典
+    """
+    di, max_count, value = card_to_di(card)
+    di[1].extend(di[2])
+    di[1].extend(di[3])
+    di[2].extend(di[3])
+    di[1].sort()
+    di[2].sort()
+    return di, max_count, value

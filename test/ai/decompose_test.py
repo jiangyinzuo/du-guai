@@ -32,7 +32,8 @@ def test_move():
 
 
 def test_seq_single_actions():
-    print(get_seq_solo_actions([3, 4, 4, 5, 5, 6, 6, 7, 7, 8], 5))
+    assert len(get_seq_actions([4, 5, 6, 7], 2, 4)) == 1
+    assert len(get_seq_actions([3, 4, 5, 6, 7, 8], 1, 5)) == 2
 
 
 def test_single_actions():
@@ -74,3 +75,8 @@ def test_combined_single_actions():
         assert np.argmax(pair_rewards) == ex_pair_args
         print(np.max(pair_rewards) > np.max(solo_rewards))
         assert (np.max(pair_rewards) > np.max(solo_rewards)) == pair_bt_solo
+
+
+def test_get_good_actions():
+    print(get_good_actions([5, 5, 6, 6, 7, 7, 7]))
+    print(get_good_actions([3, 4, 5, 5, 6, 6, 7, 7, 7, 8, 9, 10, 11]))
