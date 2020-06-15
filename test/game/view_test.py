@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 
-from game.cards import cards_view
+from card.cards import cards_view
 
 
 def test_get_card_view():

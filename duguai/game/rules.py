@@ -1,4 +1,4 @@
-from . import cards
+from card import cards
 from .utils import card_show
 
 
@@ -246,5 +246,3 @@ class PlayRecords(object):
         card_show(self.cards_left2, "player 2", 1)
         card_show(self.cards_left3, "player 3", 1)
         # card_show(self.records, "record", 3)
-
-# TODO AI出牌策略

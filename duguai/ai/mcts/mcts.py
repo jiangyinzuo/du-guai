@@ -1,10 +1,11 @@
-from __future__ import print_function
 from __future__ import absolute_import
+from __future__ import print_function
 
-import random
-from .utils import rand_max
 import copy
+import random
+
 from .graph import StateNode
+from .utils import rand_max
 
 
 class MCTS(object):

@@ -11,9 +11,9 @@ from typing import List
 
 import numpy as np
 
-from algorithm.call_landlord import get_svc, process, z_score
+from ai.call_landlord import get_svc, process, z_score
+from card.cards import cards_view, Combo
 from duguai import mode
-from game.cards import cards_view, Combo
 from utils import is_in
 
 _SPLIT_LINE = '------------------------------------'

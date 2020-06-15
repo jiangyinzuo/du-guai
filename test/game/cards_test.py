@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from game.cards import *
+from card.cards import *
 
 
 def test_cards():
@@ -22,3 +22,14 @@ def test_cmp_cards():
     print(Combo.bit_is_valid(c2.bit_info, c1.bit_info))
     print(c2)
     assert c2 > c1
+
+    test_di = {
+        '5 7 K K K A A A': 12300 + CARD_A,
+        '8  K 8 K K A A A': 12300 + CARD_A,
+        '7 8 8 8': 11300 + CARD_8,
+        '7 7 6 6 6': 21300 + CARD_6
+               }
+
+    for k, v in test_di.items():
+        c1.cards_view = k
+        assert c1.bit_info == v

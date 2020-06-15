@@ -1,10 +1,11 @@
 from __future__ import division
+
 import numpy as np
 
 
 class UCB1(object):
     """
-    The typical bandit upper confidence bounds algorithm.
+    The typical bandit upper confidence bounds ai.
     """
 
     def __init__(self, c):

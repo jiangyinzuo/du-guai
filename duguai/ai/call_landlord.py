@@ -7,7 +7,7 @@
 """
 from sklearn.svm import LinearSVC
 
-from game.cards import *
+from card.cards import *
 
 
 def has_g(raw_data: np.ndarray) -> int:
@@ -17,9 +17,9 @@ def has_g(raw_data: np.ndarray) -> int:
     @return: 0: 没有大小王，1: 只有小王，2: 只有大王，3: 大小王都有
     """
     result = 0
-    if raw_data[-1] == 15:
+    if raw_data[-1] == CARD_G1:
         result += 2
-    if raw_data[-1] == 14 or raw_data[-2] == 14:
+    if raw_data[-1] == CARD_G0 or raw_data[-2] == CARD_G0:
         result += 1
     return result
 

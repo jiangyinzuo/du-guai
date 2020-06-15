@@ -2,8 +2,8 @@
 import numpy as np
 from application.shuffle import shuffle
 
-from algorithm import LandlordClassifier
-from game.cards import CARD_G0, CARD_G1
+from ai import LandlordClassifier
+from card.cards import CARD_G0, CARD_G1
 
 
 def test_call_landlord():

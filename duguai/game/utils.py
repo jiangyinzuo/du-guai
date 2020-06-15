@@ -1,10 +1,10 @@
 import copy
 import time
 
-from ..mcts.backups import monte_carlo
-from ..mcts.default_policies import random_terminal_roll_out
-from ..mcts.mcts import MCTS
-from ..mcts.tree_policies import UCB1
+from ai.mcts import MCTS
+from ai.mcts import UCB1
+from ai.mcts import monte_carlo
+from ai.mcts import random_terminal_roll_out
 
 
 # 展示扑克函数

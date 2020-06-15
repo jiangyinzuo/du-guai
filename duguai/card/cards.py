@@ -5,26 +5,8 @@
 """
 from __future__ import annotations
 
-from typing import Union, List
-
-import numpy as np
-
-CARD_3, CARD_4, CARD_5, CARD_6, CARD_7 = 1, 2, 3, 4, 5
-CARD_8, CARD_9, CARD_10, CARD_J, CARD_Q = 6, 7, 8, 9, 10
-CARD_K, CARD_A, CARD_2, CARD_G0, CARD_G1 = 11, 12, 13, 14, 15
-
-CARD_VIEW: dict = {
-    1: '3 ', 2: '4 ', 3: '5 ', 4: '6 ', 5: '7 ',
-    6: '8 ', 7: '9 ', 8: '10 ', 9: 'J ', 10: 'Q ',
-    11: 'K ', 12: 'A ', 13: '2 ', 14: 'g ', 15: 'G '
-}
-
-VIEW_TO_VALUE: dict = {
-    '3': CARD_3, '4': CARD_4, '5': CARD_5, '6': CARD_6, '7': CARD_7,
-    '8': CARD_8, '9': CARD_9, '10': CARD_10, 'J': CARD_J,
-    'Q': CARD_Q, 'K': CARD_K, 'A': CARD_A, '2': CARD_2, 'g': CARD_G0,
-    'G': CARD_G1
-}
+from card import *
+from duguai.card.card_helper import card_to_di
 
 
 def cards_view(cards: np.ndarray) -> str:
@@ -68,17 +50,19 @@ def _two(di, value) -> int:
 
 
 def _three(di, value) -> int:
-    if len(di[3]) == 1:
-        if len(di[1]) == 1 and not di[2]:
-            return 11300 + value
-        elif len(di[2]) == 1 and not di[1]:
-            return 21300 + value
-
-    # 飞机
-    elif _is_consequent(di[3], 2):
+    # 飞机 或3带1 或3带2
+    if _is_consequent(di[3], 1):
         if not di[1]:
-            return len(di[3]) * 1000 + 300 + value + (0 if not di[2] else 20000)
-        if di[1] + di[2] * 2 == len(di[3]):
+            # 无翼
+            if not di[2]:
+                return len(di[3]) * 1000 + 300 + value
+
+            # 大翼 或3带2
+            if len(di[2]) == len(di[3]):
+                return 20000 + len(di[3]) * 1000 + 300 + value
+
+        # 小翼 或3带1
+        if len(di[1]) + len(di[2]) * 2 == len(di[3]):
             return 10000 + len(di[3]) * 1000 + 300 + value
     return INVALID_BIT
 
@@ -114,29 +98,6 @@ class Combo:
     卡牌组合类
     """
 
-    @staticmethod
-    def __to_di(combo: np.ndarray):
-        di = {1: [], 2: [], 3: [], 4: []}
-
-        count: int = 0
-        former_card = combo[0]
-        for card in combo:
-            if card == former_card:
-                count += 1
-            else:
-                di[count].append(former_card)
-                count = 1
-                former_card = card
-        di[count].append(former_card)
-
-        max_count: int = 0
-        value: int = 0
-        for k, v in di.items():
-            if v:
-                max_count = k
-                value = max(v)
-        return di, max_count, value
-
     def __calc_bit_info(self) -> int:
 
         self._cards.sort()
@@ -149,7 +110,7 @@ class Combo:
         if len(self._cards) == 2:
             return ROCKET_BIT if np.sum(self._cards) == CARD_G1 + CARD_G0 else INVALID_BIT
 
-        di, max_count, value = Combo.__to_di(self._cards)
+        di, max_count, value = card_to_di(self._cards)
 
         return MAX_COUNT_STRATEGIES[max_count - 1](di, value)
 
