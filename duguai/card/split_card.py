@@ -4,7 +4,7 @@ from typing import List
 import numpy as np
 
 from card import CARD_G1, CARD_G0, CARD_2
-from card.card_helper import card_lt_2, card_split, card_to_di
+from card.card_helper import card_lt2, card_split, card_to_di
 
 
 def _get_combo(c_hand: np.ndarray) -> List[List]:
@@ -51,6 +51,6 @@ def split_card(hand: np.ndarray) -> List:
         sp_result.append([CARD_G0])
 
     # 添加一般情况
-    split_hand = card_split(card_lt_2(hand))
+    split_hand = card_split(card_lt2(hand))
 
     return [_get_combo(i) for i in split_hand] + sp_result

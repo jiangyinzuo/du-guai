@@ -1,6 +1,9 @@
 import random
+import warnings
 
 import numpy as np
+
+warnings.warn('暂时没用到，需要人维护', DeprecationWarning)
 
 
 def rand_max(iterable, key=None):

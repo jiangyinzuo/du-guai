@@ -1,5 +1,9 @@
 from __future__ import absolute_import
 
+import warnings
+
+warnings.warn('暂时没用到，需要人维护', DeprecationWarning)
+
 
 class Node(object):
     def __init__(self, parent):

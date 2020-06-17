@@ -1,5 +1,9 @@
 from __future__ import division
 
+import warnings
+
+warnings.warn('暂时没用到，需要人维护', DeprecationWarning)
+
 
 def monte_carlo(node):
     """

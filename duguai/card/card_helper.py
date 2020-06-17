@@ -4,14 +4,14 @@ from typing import Tuple, Dict
 from card import *
 
 
-def has_rocket(card: CardType) -> bool:
+def has_rocket(card: CardsType) -> bool:
     """
     一副牌中是否含大小王
     """
     return len(card) >= 2 and card[-2] == CARD_G0
 
 
-def card_lt_2(card: CardType):
+def card_lt2(card: CardsType):
     """
     获取一副牌中所有小于2的牌
     """
@@ -19,9 +19,18 @@ def card_lt_2(card: CardType):
     return card[:idx]
 
 
-def card_split(card: CardType) -> List[np.ndarray]:
+def card_lt2_two_g(card: np.ndarray) -> Tuple:
+    """
+    把一副牌分解成小于2的，等于2的，大小王
+    @return: 元组
+    """
+    return card[card < CARD_2], card[card == CARD_2], card[card > CARD_2]
+
+
+def card_split(card: CardsType) -> List[np.ndarray]:
     """
     分解不连续的牌
+    @note: 2和大小王不应当在里面
     """
     split_li = [i + 1 for i in range(len(card) - 1) if card[i] + 1 < card[i + 1]]
     return np.split(card, split_li)

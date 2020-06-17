@@ -3,9 +3,12 @@ from __future__ import print_function
 
 import copy
 import random
+import warnings
 
 from .graph import StateNode
 from .utils import rand_max
+
+warnings.warn('暂时没用到，需要人维护', DeprecationWarning)
 
 
 class MCTS(object):

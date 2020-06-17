@@ -1,10 +1,14 @@
 import copy
 import time
+import warnings
 
-from ai.mcts import MCTS
-from ai.mcts import UCB1
-from ai.mcts import monte_carlo
-from ai.mcts import random_terminal_roll_out
+from ai.mcts.backups import monte_carlo
+from ai.mcts.default_policies import random_terminal_roll_out
+from ai.mcts.mcts import MCTS
+from ai.mcts.tree_policies import UCB1
+from game import actions
+
+warnings.warn('暂时废弃不用', DeprecationWarning)
 
 
 # 展示扑克函数

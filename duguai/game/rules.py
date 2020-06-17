@@ -1,5 +1,9 @@
+import warnings
+
 from card import cards
 from .utils import card_show
+
+warnings.warn('暂时废弃不用', DeprecationWarning)
 
 
 class Card(object):

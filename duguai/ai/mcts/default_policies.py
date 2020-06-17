@@ -1,6 +1,6 @@
 import random
 
-
+warnings.warn('暂时没用到，需要人维护', DeprecationWarning)
 def random_terminal_roll_out(state_node):
     """
     Estimate the reward with the sum of a rollout till a terminal state.
