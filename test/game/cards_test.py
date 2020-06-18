@@ -19,7 +19,7 @@ def test_cmp_cards():
 
     c1.cards_view = '3 3 5 3 5'
     c2.cards_view = 'A A A J J'
-    print(Combo.bit_is_valid(c2.bit_info, c1.bit_info))
+    print(Combo._bit_is_valid(c2.bit_info, c1.bit_info))
     print(c2)
     assert c2 > c1
 

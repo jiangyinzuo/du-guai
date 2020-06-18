@@ -212,26 +212,31 @@ class Combo:
         return bit_info // 100 == 14
 
     @staticmethod
-    def bit_value_lt(cur_bit: int, former_bit: int) -> bool:
+    def _bit_value_lt(cur_bit: int, former_bit: int) -> bool:
         return cur_bit % 100 > former_bit % 100
 
     @staticmethod
-    def bit_type_eq(cur_bit: int, former_bit: int) -> bool:
+    def _bit_type_eq(cur_bit: int, former_bit: int) -> bool:
+        """
+        判断两个bit info代表的牌类型是否相等
+        @param cur_bit: 当前牌的bit info
+        @param former_bit: 上一次牌的bit info
+        """
         return cur_bit // 100 == former_bit // 100
 
     @staticmethod
-    def bit_is_valid(cur_bit: int, former_bit: int) -> bool:
+    def _bit_is_valid(cur_bit: int, former_bit: int) -> bool:
         if cur_bit == ROCKET_BIT:
             return True
         if former_bit == ROCKET_BIT:
             return False
         if Combo.is_bomb(cur_bit):
-            return not Combo.is_bomb(former_bit) or Combo.bit_value_lt(cur_bit, former_bit)
+            return not Combo.is_bomb(former_bit) or Combo._bit_value_lt(cur_bit, former_bit)
 
-        return Combo.bit_type_eq(cur_bit, former_bit) and Combo.bit_value_lt(cur_bit, former_bit)
+        return Combo._bit_type_eq(cur_bit, former_bit) and Combo._bit_value_lt(cur_bit, former_bit)
 
     def __gt__(self, other: Combo):
-        return Combo.bit_is_valid(self._bit_info, other._bit_info)
+        return Combo._bit_is_valid(self._bit_info, other._bit_info)
 
     def __repr__(self):
         return 'Combo: ' + self._cards_view

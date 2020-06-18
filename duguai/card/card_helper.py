@@ -19,7 +19,7 @@ def card_lt2(card: CardsType):
     return card[:idx]
 
 
-def card_lt2_two_g(card: np.ndarray) -> Tuple:
+def card_lt2_two_g(card: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     把一副牌分解成小于2的，等于2的，大小王
     @return: 元组
@@ -66,6 +66,7 @@ def card_to_di(card: np.ndarray) -> Tuple[Dict[int, list], int, int]:
 def card_to_suffix_di(card: np.ndarray) -> Tuple[Dict[int, list], int, int]:
     """
     获取统计卡牌后缀数量的字典
+    di[1]表示数量大于等于1张的牌面的数组
     """
     di, max_count, value = card_to_di(card)
     di[1].extend(di[2])
