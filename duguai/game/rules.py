@@ -1,6 +1,6 @@
 import warnings
 
-from card import cards
+from card import combo
 from .utils import card_show
 
 warnings.warn('暂时废弃不用', DeprecationWarning)
@@ -13,7 +13,7 @@ class Card(object):
 
     def __init__(self, s_card):
         self.rank = s_card
-        self.name = cards.CARD_VIEW[s_card]
+        self.name = combo.CARD_VIEW[s_card]
 
     # 判断大小
     def bigger_than(self, card_instance):

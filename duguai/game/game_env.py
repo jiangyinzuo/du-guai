@@ -12,7 +12,8 @@ from typing import List
 import numpy as np
 
 from ai.call_landlord import get_svc, process, z_score
-from card.cards import cards_view, Combo
+from card.cards import cards_view
+from card.combo import Combo
 from duguai import mode
 from utils import is_in
 

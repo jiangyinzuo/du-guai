@@ -3,7 +3,7 @@ import numpy as np
 from application.shuffle import shuffle
 
 from ai import LandlordClassifier
-from card.cards import CARD_G0, CARD_G1
+from card.combo import CARD_G0, CARD_G1
 
 
 def test_call_landlord():

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from card.cards import *
+from card.combo import *
 
 
 def test_cards():

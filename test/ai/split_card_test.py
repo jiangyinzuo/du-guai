@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 
-from card.card_helper import card_split
+from card.cards import card_split
 
 
 def test_split():
