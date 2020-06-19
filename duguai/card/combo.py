@@ -153,11 +153,40 @@ class Combo:
         """
         return self._bit_info // 100 % 100 == 12
 
+    @property
+    def with_kind(self) -> int:
+        """
+        带牌的种类
+        """
+        return self._bit_info // 10000
+
+    def is_trio(self) -> bool:
+        """
+        是否为三
+        """
+        return self._bit_info // 100 % 100 == 13
+
+    def is_single(self) -> bool:
+        """是否为单牌"""
+        return self._bit_info // 100 % 100 // 10 == 1
+
+    def is_quartet(self) -> bool:
+        """
+        是否为四带2
+        """
+        return self._bit_info // 100 % 100 == 14 and self._bit_info // 10000 > 0
+
     def has_pair(self) -> bool:
         """
         是否需要对
         """
         return self.is_pair() or self._bit_info // 10000 == 2
+
+    def is_seq(self) -> bool:
+        """
+        是否为一种序列（顺子/连对/飞机/炸弹
+        """
+        return self.seq_len >= 2
 
     @property
     def seq_len(self) -> int:
@@ -165,6 +194,13 @@ class Combo:
         连续的长度
         """
         return self._bit_info // 1000 % 10
+
+    @property
+    def kind(self) -> int:
+        """
+        单种牌或序列类型
+        """
+        return self._bit_info // 100 % 10
 
     @property
     def value(self) -> int:

@@ -17,7 +17,7 @@ KIND_TO_MIN_LEN = {1: 5, 2: 3, 3: 2, 4: 2}
 MAX_Q = 10000
 
 
-class Decomposer(metaclass=ABCMeta):
+class AbstractDecomposer(metaclass=ABCMeta):
     """
     拆牌类。该类只负责拆出较好的牌组，不考虑其它玩家手牌的情况。
     状态（state）表示目前的手牌。
@@ -31,8 +31,10 @@ class Decomposer(metaclass=ABCMeta):
         """
         获取一副牌的分解值
         """
+        if len(card) == 0:
+            return 0
         card = card_lt2(card)
-        di, result, _ = card_to_di(card)
+        di, result, _ = card_to_suffix_di(card)
 
         # 顺子/连对
         for t in range(1, 3):
@@ -60,19 +62,23 @@ class Decomposer(metaclass=ABCMeta):
 
         return result
 
-    def _calc_d(self, lt2_state, actions) -> np.ndarray:
+    def _calc_d(self, lt2_state, actions, no_max_q: bool = False) -> np.ndarray:
         """对每一种状态-动作计算其d值"""
         result = []
         for a in actions:
             next_state = get_next_state(lt2_state, a)
-            if next_state:
+            if next_state or no_max_q:
                 result.append(self.decompose_value(next_state))
             else:
                 # 该动作打完就没牌了，故d值为最大值
                 result.append(MAX_Q)
         return np.array(result)
 
-    def _eval_actions(self, func, lt2_state: CardsType, **kwargs) -> Tuple[np.ndarray, np.ndarray]:
+    def _eval_actions(self,
+                      func,
+                      lt2_state: CardsType,
+                      no_max_q: bool = False,
+                      **kwargs) -> Tuple[np.ndarray, np.ndarray]:
         actions = np.array(
             func(lt2_state, kwargs['length']) if 'card_list' not in kwargs.keys() else func(kwargs['card_list'],
                                                                                             kwargs['kind'],
@@ -80,7 +86,7 @@ class Decomposer(metaclass=ABCMeta):
 
         # q = d(next state) + len(a)
         len_a = kwargs['length'] if 'card_list' not in kwargs.keys() else kwargs['length'] * kwargs['kind']
-        q_list: np.ndarray = self._calc_d(lt2_state, actions) + len_a
+        q_list: np.ndarray = self._calc_d(lt2_state, actions, no_max_q) + len_a
         if len(q_list) == 0:
             return np.array([]), np.array([])
         max_q = np.max(q_list)
@@ -92,19 +98,30 @@ class Decomposer(metaclass=ABCMeta):
         self._state = np.array(state)
 
         # 将手牌分解成不连续的部分
-        lt2_cards, eq2_cards, self._ghosts = card_lt2_two_g(self._state)
-        self._lt2_states = card_split(lt2_cards)
+        self._lt2_cards, eq2_cards, self._ghosts = card_lt2_two_g(self._state)
+        self._lt2_states = card_split(self._lt2_cards)
         self.card2_count: int = len(eq2_cards)
         self._output: List[np.ndarray] = []
         self._last_combo = last_combo
 
+    @staticmethod
+    def _max_q_actions(good_actions, q_lists, delta: int = 0, max_q: int = 0) -> np.ndarray:
+        if len(q_lists) == 0:
+            return np.ndarray([])
+        good_actions: np.ndarray = np.array(good_actions)
+        return np.array(good_actions[np.array(q_lists) >= max(max_q, np.max(q_lists)) - delta])
 
-class FollowDecomposer(Decomposer):
+
+class FollowDecomposer(AbstractDecomposer):
     """
     跟牌拆牌器
     """
 
-    def _add_bomb(self, bomb_list: list):
+    def __init__(self):
+        self._lt2_di = None
+
+    def _add_bomb(self, bomb_list: list) -> None:
+        """添加炸弹"""
 
         if len(self._ghosts) == 2:
             self._output.append(self._ghosts)
@@ -120,8 +137,9 @@ class FollowDecomposer(Decomposer):
             for card in bomb_list:
                 self._output.append(np.array([card, card, card, card]))
 
-    def _add_single_good_actions(self, kind: int, min_value: int = -1) -> None:
+    def _add_single(self, kind: int, min_value: int = -1) -> None:
 
+        # 加入ghost
         if kind == 1 and len(self._ghosts) and self._last_combo.value < self._ghosts[-1]:
             self._output.append(np.array([self._ghosts[-1]]))
 
@@ -143,7 +161,34 @@ class FollowDecomposer(Decomposer):
             for i in np.unique(good_actions[good_actions > min_value]):
                 self._output.append(np.array([i] * kind))
 
-    def get_good_follows(self, state, last_combo) -> List[np.ndarray]:
+    def _add_seq(self, length: int, kind: int) -> None:
+        """
+        添加序列（顺子/连对/飞机/航天飞机）
+        @param length: 序列长度
+        @param kind: 序列种类，顺子取1，连对取2，飞机取3，航天飞机取4
+        """
+        for lt2_state in self._lt2_states:
+            good_actions: list = []
+            q_lists: list = []
+            max_q = -1
+            for k, min_len in KIND_TO_MIN_LEN.items():
+                card_list = self._lt2_di[k]
+                for card_len in range(min_len, len(card_list) + 1):
+                    good_action, q_list = self._eval_actions(_get_seq_actions,
+                                                             lt2_state,
+                                                             True,
+                                                             card_list=card_list,
+                                                             kind=k,
+                                                             length=card_len)
+                    if len(q_list) == 0:
+                        break
+                    if k == kind and length == card_len:
+                        good_actions.extend(good_action)
+                        q_lists.extend(q_list)
+                    max_q = max(max_q, np.max(q_list))
+            self._output.extend(self._max_q_actions(good_actions, q_lists, 1, max_q))
+
+    def get_good_follows(self, state, last_combo: Combo) -> List[np.ndarray]:
         """
         获取较好的跟牌行动。
         @param state: 当前手牌。
@@ -154,19 +199,50 @@ class FollowDecomposer(Decomposer):
             return []
         self._process_state(state, last_combo)
 
-        di, max_count, value = card_to_di(self._state)
+        self._lt2_di = card_to_di(self._lt2_cards)[0]
 
-        self._add_bomb(di[4])
+        self._add_bomb(self._lt2_di[4])
 
         if last_combo.has_solo():
-            self._add_single_good_actions(1, self._last_combo.value if last_combo.is_solo() else None)
+            self._add_single(1, self._last_combo.value if last_combo.is_solo() else -1)
         elif last_combo.has_pair():
-            self._add_single_good_actions(2, self._last_combo.value if last_combo.is_pair() else None)
+            self._add_single(2, self._last_combo.value if last_combo.is_pair() else -1)
+        if last_combo.is_trio():
+            self._add_single(3, self._last_combo.value)
+        elif last_combo.is_quartet():
+            self._add_single(4, self._last_combo.value)
+
+        if last_combo.is_seq():
+            self._add_seq(last_combo.seq_len, last_combo.kind)
+        return self._output
+
+    def get_all_follows_no_carry(self, state, last_combo: Combo) -> List[np.ndarray]:
+        """
+        获取所有的跟牌行动。
+        @param state: 当前手牌。
+        @param last_combo: 上一次出牌
+        @note: last combo为N带M时，没有给出M
+        @return: 包含所有好的出牌类型的数组
+        """
+        if last_combo.is_rocket():
+            return []
+        self._process_state(state, last_combo)
+
+        self._lt2_di = card_to_di(self._lt2_cards)[0]
+
+        self._add_bomb(self._lt2_di[4])
+
+        if last_combo.is_single():
+            actions = _get_single_actions(state, last_combo.kind)
+            self._output.extend((np.array(a) for a in actions if a[0] > last_combo.value))
+        elif last_combo.is_seq():
+            actions = _get_seq_actions(state, kind=last_combo.kind, length=last_combo.seq_len)
+            self._output.extend((np.array(a) for a in actions if a[0] > last_combo.value))
 
         return self._output
 
 
-class PlayDecomposer(Decomposer):
+class PlayDecomposer(AbstractDecomposer):
     """
     出牌拆牌器
     """
@@ -197,10 +273,8 @@ class PlayDecomposer(Decomposer):
                                                          length=length)
                 good_actions.extend(good_action)
                 q_lists.extend(q_list)
-        if len(q_lists) == 0:
-            return []
-        good_actions: np.ndarray = np.array(good_actions)
-        return np.array(good_actions[np.array(q_lists) == np.max(q_lists)])
+
+        return self._max_q_actions(good_actions, q_lists)
 
     def get_good_plays(self, state: CardsType) -> List[np.ndarray]:
         """
