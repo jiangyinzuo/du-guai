@@ -240,11 +240,11 @@ class Combo:
         return self._cards
 
     @cards.setter
-    def cards(self, v):
+    def cards(self, v: CardsType):
         if not v:
             self.pass_()
         else:
-            self._cards = v
+            self._cards: np.ndarray = np.array(v)
             self._cards.sort()
             self._cards_view = cards_view(self._cards)
             self._bit_info = self.__calc_bit_info()

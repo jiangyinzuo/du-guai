@@ -21,4 +21,4 @@ VIEW_TO_VALUE: dict = {
 }
 
 CardsType = Union[List[int], np.ndarray]
-ActionsType = List[List[int]]
+ActionsType = Union[List[np.ndarray], List[List[int]]]

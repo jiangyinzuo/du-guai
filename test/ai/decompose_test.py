@@ -30,6 +30,8 @@ def test_good_single():
 
     combo.cards = [3, 4, 5, 6, 7]
     print(decomposer.get_good_follows([5, 6, 7, 8, 9, 10, 11, 12], combo))
+    combo.cards = [8]
+    assert len(decomposer.get_good_follows([5, 7, CARD_G0, CARD_G1], combo)) == 2
 
 
 def test_trio_with_one():
@@ -40,15 +42,8 @@ def test_trio_with_one():
     print(decomposer.get_all_follows_no_carry([8, 8, 8, 9, 10], combo))
 
 
-def test_time():
-    from time import time
-    t = time()
-    a = 0
-    for i in range(658409472):
-        if a & 1:
-            a += i
-        else:
-            a -= i
-        if i % 10000000 == 0:
-            print(i)
-    print(time() - t)
+def test_shuttle():
+    decomposer = PlayDecomposer()
+    combo = Combo()
+    combo.cards_view = '3 3 3 3 4 4 4 4 8'
+    print(decomposer.get_good_plays(combo.cards))
