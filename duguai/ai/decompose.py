@@ -216,7 +216,7 @@ class FollowDecomposer(AbstractDecomposer):
             self._add_seq(last_combo.seq_len, last_combo.kind)
         return self._output
 
-    def get_all_follows_no_carry(self, state, last_combo: Combo) -> List[np.ndarray]:
+    def get_remain_follows_no_take(self, state, last_combo: Combo) -> List[np.ndarray]:
         """
         获取所有的跟牌行动。
         @param state: 当前手牌。
@@ -234,10 +234,10 @@ class FollowDecomposer(AbstractDecomposer):
 
         if last_combo.is_single():
             actions = _get_single_actions(state, last_combo.kind)
-            self._output.extend((np.array(a) for a in actions if a[0] > last_combo.value))
+            self._output.extend((np.array(a) for a in actions if a[-1] > last_combo.value))
         elif last_combo.is_seq():
             actions = _get_seq_actions(state, kind=last_combo.kind, length=last_combo.seq_len)
-            self._output.extend((np.array(a) for a in actions if a[0] > last_combo.value))
+            self._output.extend((np.array(a) for a in actions if a[-1] > last_combo.value))
 
         return self._output
 
@@ -316,8 +316,10 @@ def _get_single_actions(state: CardsType, length: int) -> ActionsType:
     """
     result = []
     last_card = -1
+    state = list(state)
     for i in range(length, len(state) + 1):
-        if state[i - 1] == state[i - length] and state[i - 1] != last_card:
+        if state[i - 1] == state[i - length] and state[i - 1] != last_card and (
+                state.count(state[i - 1]) < 4 or length % 2 == 0):
             last_card = state[i - 1]
             result.append([last_card] * length)
     return result

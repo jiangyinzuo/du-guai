@@ -39,7 +39,7 @@ def test_trio_with_one():
     combo.cards = [3, 7, 7, 7]
     decomposer = FollowDecomposer()
     print(decomposer.get_good_follows([8, 8, 8, 9, 10], combo))
-    print(decomposer.get_all_follows_no_carry([8, 8, 8, 9, 10], combo))
+    print(decomposer.get_remain_follows_no_take([8, 8, 8, 9, 10], combo))
 
 
 def test_shuttle():
@@ -47,3 +47,21 @@ def test_shuttle():
     combo = Combo()
     combo.cards_view = '3 3 3 3 4 4 4 4 8'
     print(decomposer.get_good_plays(combo.cards))
+
+
+def test_get_all_follows_no_take():
+    """测试get_all_follows_no_take的特性"""
+    decomposer = FollowDecomposer()
+    combo = Combo()
+    combo.cards = [3, 7, 7, 7]
+
+    # 不会带单或者带双
+    assert len(decomposer.get_good_follows([8, 8, 8, 8, 9, 10], combo)) == 3
+    assert len(decomposer.get_remain_follows_no_take([8, 8, 8, 8, 9, 10], combo)) == 1
+
+    combo.cards = [4, 5, 6, 7, 8]
+
+    # 强行拆牌
+    assert len(decomposer.get_good_follows([4, 5, 6, 7, 8, 9, 10, 11, 12], combo)) == 0
+    assert len(decomposer.get_remain_follows_no_take([4, 5, 6, 7, 8, 9, 10, 11, 12], combo)) == 4
+
