@@ -111,9 +111,6 @@ class Hand:
         self._min_solo = value
 
 
-Action = List[int]
-
-
 class Provider:
     """
     给AI提供state和action的类
@@ -123,11 +120,18 @@ class Provider:
     _FARMER_1 = 1
     _FARMER_2 = 2
 
-    def __init__(self, land_lord_id: int, player_id: int):
-        self.__land_lord_id = land_lord_id
+    def __init__(self, player_id: int):
+        self.__landlord_id = None
         self.__player_id = player_id
         self._action_provider = Provider.ActionProvider(self)
         self._state_provider = Provider.StateProvider(self)
+
+    def add_landlord(self, landlord_id: int):
+        """
+        设置地主
+        @param landlord_id: 地主玩家的id
+        """
+        self.__landlord_id = landlord_id
 
     @property
     def identity(self) -> int:
@@ -135,10 +139,10 @@ class Provider:
         玩家身份
         @return: 0: 地主; 1: 地主下家农民; 2: 地主上家农民
         """
-        return (self.__player_id - self.__land_lord_id + 3) % 3
+        return (self.__player_id - self.__landlord_id + 3) % 3
 
     def provide(self, cards: List[int], hand_p: int, hand_n: int, last_combo_owner: int, last_combo: Combo = None) \
-            -> Tuple[np.ndarray, Action, Hand, Hand]:
+            -> Tuple[np.ndarray, List[int], Hand, Hand]:
         """
         提供状态和动作
         @param cards: 当前玩家手牌
@@ -155,7 +159,7 @@ class Provider:
             good_hand, bad_hand, action_list = self._action_provider.provide_follow(cards, last_combo)
 
         state: np.ndarray = self._state_provider.provide(good_hand, hand_p, hand_n,
-                                                         (last_combo_owner - self.__land_lord_id + 3) % 3)
+                                                         (last_combo_owner - self.__landlord_id + 3) % 3)
         return state, action_list, good_hand, bad_hand
 
     class ActionProvider:
@@ -178,7 +182,7 @@ class Provider:
 
             # 若玩家为1号农民，当2号农民只剩一张牌时，仅尝试拆一次单牌。
             self._split_min_solo: bool = True
-            self.action_list: Action = []
+            self.action_list: List[int] = []
 
         def _split_solo(self, cards: List[int], hand: Hand):
             self._split_min_solo = False
@@ -218,10 +222,21 @@ class Provider:
                 if len(hand.pair) >= 2:
                     action_list.append(127)
 
-        def _add_actions(self, hand: Hand):
+        @staticmethod
+        def _has_take(hand, take_kind: int, take_num: int) -> bool:
+            if take_kind == 0:
+                return True
+            if take_kind == 1:
+                return len(hand.solo) + len(hand.pair) * 2 >= take_num
+            if take_kind == 2:
+                return len(hand.pair) >= take_num
+            raise ValueError('非法的值')
+
+        def _add_actions(self, hand: Hand, last_combo: Combo = None):
             action_list = []
-            self._add_solo_actions(hand, action_list)
-            if len(hand.pair):
+            if last_combo is None or last_combo.is_solo():
+                self._add_solo_actions(hand, action_list)
+            if last_combo is None or last_combo.is_pair() and len(hand.pair):
                 action_list.extend([12, 22, 32, 42])
             if len(hand.trio):
                 action_list.extend([3, 103, 103])
@@ -232,19 +247,19 @@ class Provider:
             if len(hand.seq_solo5):
                 action_list.extend([5, 15])
             self._add_bomb_actions(hand, action_list)
-            if len(hand.seq) > 0 or len(hand.plane) > 0:
+            if len(hand.seq) > 0 or len(hand.plane) > 0 and self._has_take(hand, 1, 2):
                 action_list.append(6)
             return action_list
 
         def provide_play(self, cards: List[int], hand_p: int, hand_n: int) -> \
-                Tuple[Hand, Action]:
+                Tuple[Hand, List[int]]:
             """
             提供出牌时候的actions
             @param cards:
             @param hand_p:
             @param hand_n:
             """
-            self.action_list: Action = []
+            self.action_list: List[int] = []
             d_actions = self._play_decomposer.get_good_plays(cards)
             hand: Hand = Hand(cards, d_actions)
 
@@ -262,20 +277,20 @@ class Provider:
             return hand, self._add_actions(hand)
 
         def provide_follow(self, cards: List[int], last_combo: Combo) \
-                -> Tuple[Hand, Hand, Action]:
+                -> Tuple[Hand, Hand, List[int]]:
             """
             提供跟牌时候的action
             @param cards:
             @param last_combo: 上一个出牌的Combo
             """
-            self.action_list: Action = []
+            self.action_list: List[int] = []
             d_actions = self._follow_decomposer.get_good_follows(cards, last_combo)
             bad_d_actions = self._follow_decomposer.get_remain_follows_no_take(cards, last_combo)
             good_hand: Hand = Hand(cards, d_actions)
             bad_hand: Hand = Hand(cards, bad_d_actions)
             action_list = [0]
-            action_list.extend(self._add_actions(good_hand))
-            action_list.extend(self._add_actions(bad_hand))
+            action_list.extend(self._add_actions(good_hand, last_combo))
+            action_list.extend(self._add_actions(bad_hand, last_combo))
             return good_hand, bad_hand, list(set(action_list))
 
     class StateProvider:

@@ -70,6 +70,7 @@ class AbstractDecomposer(metaclass=ABCMeta):
                 if np.sum(lt2_state == card) == 4 and len(a) < 4:
                     penalty = -1
                     break
+
             next_state: List[int] = get_next_state(lt2_state, a)
             if next_state or no_max_q:
                 result.append(self.decompose_value(next_state) + penalty)
@@ -110,7 +111,7 @@ class AbstractDecomposer(metaclass=ABCMeta):
     @staticmethod
     def _max_q_actions(good_actions, q_lists, delta: int = 0, max_q: int = 0) -> np.ndarray:
         if len(q_lists) == 0:
-            return np.ndarray([])
+            return np.array([])
         good_actions: np.ndarray = np.array(good_actions)
         return np.array(good_actions[np.array(q_lists) >= max(max_q, np.max(q_lists)) - delta])
 
@@ -202,7 +203,7 @@ class FollowDecomposer(AbstractDecomposer):
             return []
         self._process_state(state, last_combo)
 
-        self._lt2_di = card_to_di(self._lt2_cards)[0]
+        self._lt2_di = card_to_suffix_di(self._lt2_cards)[0]
 
         self._add_bomb(self._lt2_di[4])
 
@@ -231,7 +232,7 @@ class FollowDecomposer(AbstractDecomposer):
             return []
         self._process_state(state, last_combo)
 
-        self._lt2_di = card_to_di(self._lt2_cards)[0]
+        self._lt2_di = card_to_suffix_di(self._lt2_cards)[0]
 
         self._add_bomb(self._lt2_di[4])
 

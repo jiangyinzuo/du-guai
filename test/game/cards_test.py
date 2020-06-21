@@ -12,6 +12,9 @@ def test_cards():
     c1.cards = np.array([1, 1, 1, 4])
     assert c1._bit_info == 11301
 
+    c1.cards_view = '5 5 2 2 2'
+    assert c1._bit_info == 21313
+
 
 def test_cmp_cards():
     c1 = Combo()

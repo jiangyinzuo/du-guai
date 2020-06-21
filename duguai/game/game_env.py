@@ -11,11 +11,8 @@ from typing import List
 
 import numpy as np
 
-from ai.call_landlord import get_svc, process, z_score
 from card.cards import cards_view
 from card.combo import Combo
-from duguai import mode
-from utils import is_in
 
 _SPLIT_LINE = '------------------------------------'
 
@@ -36,6 +33,7 @@ def _remove_last_combo(func):
             hand.remove(i)
         player.hand = np.array(hand)
         return result
+
     return decorated
 
 
@@ -77,6 +75,14 @@ class GameEnv:
             pass
 
         @abc.abstractmethod
+        def notify_landlord(self, landlord_id: int) -> None:
+            """
+            由GameEnv通知各个玩家谁是地主。
+            @param landlord_id: 地主玩家的id
+            """
+            pass
+
+        @abc.abstractmethod
         def follow(self) -> None:
             """
             跟牌
@@ -105,8 +111,8 @@ class GameEnv:
         # 地主编号
         self.land_lord: int = -1
 
-        # 上一个combo是谁打的。若上一个combo是自己打的，则出牌；否则跟牌
-        self.last_combo_owner: int = -1
+        # 上一个combo是谁打的。若上一个combo是自己打的，则出牌；否则跟牌。游戏开始时为地主玩家的id
+        self._last_combo_owner: int = -1
 
         # 上一个Combo（除了初始状态，不含打牌过程中产生的PASS）
         self._former_combo: Combo = Combo()
@@ -149,6 +155,24 @@ class GameEnv:
         return self._former_combo
 
     @property
+    def hand_p(self) -> int:
+        """当前玩家上家的手牌数量"""
+        return len(self.cards[(self.turn + 2) % 3])
+
+    @property
+    def hand_n(self) -> int:
+        """当前玩家下家的手牌数量"""
+        return len(self.cards[(self.turn + 1) % 3])
+
+    @property
+    def last_combo_owner(self) -> int:
+        """
+        上一个牌是哪个玩家打的
+        @return: 玩家id
+        """
+        return self._last_combo_owner
+
+    @property
     def cur_identity(self) -> str:
         """
         当前打牌的身份与玩家id
@@ -164,11 +188,12 @@ class GameEnv:
                 if player.call_landlord():
                     self.land_lord = self.turn
                     print(_SPLIT_LINE)
-                    print('玩家{}叫了地主'.format(self.turn))
+                    for p in self.players:
+                        p.notify_landlord(self.turn)
                     print("地主获得了3张牌: {}".format(cards_view(self.cards[3])))
                     self.cards[self.turn] = np.concatenate([self.cards[self.turn], self.cards[3]])
                     self.cards[self.turn].sort()
-                    self.last_combo_owner = self.turn
+                    self._last_combo_owner = self.turn
                     break
 
                 self.turn = (self.turn + 1) % 3
@@ -177,7 +202,7 @@ class GameEnv:
         print('斗地主开始！')
         while True:
             print(_SPLIT_LINE)
-            if self.last_combo_owner == self.turn:
+            if self._last_combo_owner == self.turn:
                 print(self.cur_identity + '出牌')
                 self.players[self.turn].play()
             else:
@@ -194,83 +219,12 @@ class GameEnv:
                 return
 
             if self.players[self.turn].last_combo.is_not_empty():
-                self.last_combo_owner = self.turn
+                self._last_combo_owner = self.turn
                 self._former_combo = self.players[self.turn].last_combo
 
                 print(_SPLIT_LINE)
                 print(self.cur_identity + '打出了：' + self._former_combo.cards_view)
+            else:
+                print(self.cur_identity + '空过')
 
             self.turn = (self.turn + 1) % 3
-
-
-class Human(GameEnv.AbstractPlayer):
-    """
-    人类玩家，由控制台输入输出进行操作
-    @author 江胤佐
-    """
-
-    def __init__(self, game_env: GameEnv, order: int):
-        super().__init__(game_env, order)
-
-    def call_landlord(self) -> bool:
-        """
-        玩家叫地主
-        @return: 叫: True; 不叫: False
-        """
-        print('玩家{}的手牌:'.format(self.order), cards_view(self.hand))
-        return input('>>> (输入1叫地主, 输入其它键不叫地主)') == '1'
-
-    @_remove_last_combo
-    def follow(self) -> None:
-        """
-        玩家跟牌
-        """
-        while True:
-            cards_v = input('你的手牌:{}\n>>> (输入要出的牌，以空格分隔。直接回车代表空过。)'.format(cards_view(self.hand)))
-            self.last_combo.cards_view = cards_v
-            if not cards_v or is_in(self.last_combo.cards, self.hand) and \
-                    self.last_combo.is_valid() and \
-                    self.last_combo > self.game_env.former_combo:
-                break
-            else:
-                print('输入非法!')
-
-    @_remove_last_combo
-    def play(self) -> None:
-        """
-        玩家出牌
-        """
-        while True:
-            self.last_combo.cards_view = input('你的手牌:{}\n>>> (输入要出的牌，以空格分隔。)'.format(cards_view(self.hand)))
-            if is_in(self.last_combo.cards, self.hand) and self.last_combo.is_not_empty():
-                break
-            else:
-                print('输入非法!')
-
-
-class Robot(GameEnv.AbstractPlayer):
-    """
-    AI，由机器学习算法决定操作
-    @author 江胤佐
-    """
-
-    def __init__(self, game_env: GameEnv, order: int):
-        super().__init__(game_env, order)
-        self.svc = get_svc()
-
-    def call_landlord(self) -> bool:
-        """
-        AI叫地主
-        @return: 叫: True; 不叫: False
-        """
-        if mode == 'debug':
-            print('AI{}的手牌:'.format(self.order), cards_view(self.hand))
-        return self.svc.predict(z_score([process(self.hand), ])) == 1
-
-    @_remove_last_combo
-    def follow(self) -> None:
-        pass
-
-    @_remove_last_combo
-    def play(self) -> None:
-        pass

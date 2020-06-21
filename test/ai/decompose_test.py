@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from card import CARD_2
-from card.combo import Combo
 from duguai.ai.decompose import *
 
 
@@ -18,7 +16,7 @@ def test_get_good_actions():
     decomposer = PlayDecomposer()
     combo = Combo()
     combo.cards_view = '3 3 4 5 5 6 7 7 7 8 9 10 J Q K K A 2 g G'
-    print(decomposer.get_good_plays(combo.cards))
+    print(decomposer.get_good_plays(list(combo.cards)))
     print(decomposer.get_good_plays([5, 6, 7, 7, 8, 8, 9, 10]))
     print(decomposer.get_good_plays([1, 1, 1, 1, 5, 5, 6, 6, 7, 7, 7, 9, 9, 10, 10, 11, 11, 14, 15]))
     print(decomposer.get_good_plays([3, 4, 5, 5, 6, 6, 7, 7, 7, 8, 9, 10, 11]))
@@ -48,7 +46,7 @@ def test_bomb():
     decomposer = PlayDecomposer()
     combo = Combo()
     combo.cards_view = '3 3 3 3 4 4 4 4 8'
-    print(decomposer.get_good_plays(combo.cards))
+    print(decomposer.get_good_plays(list(combo.cards)))
 
 
 def test_get_remain_follows_no_take():
@@ -68,3 +66,6 @@ def test_get_remain_follows_no_take():
     # 强行拆牌
     assert len(decomposer.get_good_follows([4, 5, 6, 7, 8, 9, 10, 11, 12], combo)) == 0
     assert len(decomposer.get_remain_follows_no_take([4, 5, 6, 7, 8, 9, 10, 11, 12], combo)) == 4
+
+    combo.cards = [4, 5, 6, 7, 8]
+    assert len(decomposer.get_good_follows([5, 5, 6, 7, 8, 9], combo)) == 1

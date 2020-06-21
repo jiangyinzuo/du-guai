@@ -43,7 +43,7 @@ def _two(di, value) -> int:
 
 def _three(di, value) -> int:
     # 飞机 或3带1 或3带2
-    if _is_consequent(di[3], 1):
+    if _is_consequent(di[3], 1) or len(di[3]) == 1 and di[3][0] == CARD_2:
         if not di[1]:
             # 无翼
             if not di[2]:
@@ -221,7 +221,7 @@ class Combo:
 
     @cards_view.setter
     def cards_view(self, v: Union[str, List[str]]):
-        if not v:
+        if len(v) == 0:
             self.pass_()
             return
 
@@ -246,7 +246,7 @@ class Combo:
 
     @cards.setter
     def cards(self, v: Union[List[int], np.ndarray]):
-        if not v:
+        if len(v) == 0:
             self.pass_()
         else:
             self._cards: np.ndarray = np.array(v)
