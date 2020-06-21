@@ -5,6 +5,10 @@
 """
 from __future__ import annotations
 
+from typing import Union, List
+
+import numpy as np
+
 from card import *
 from card.cards import cards_view
 from duguai.card.cards import card_to_di
@@ -57,7 +61,7 @@ def _three(di, value) -> int:
 
 def _four(di, value) -> int:
     if di[3]:
-        return -1
+        return INVALID_BIT
 
     if len(di[4]) == 1:
 
@@ -241,7 +245,7 @@ class Combo:
         return self._cards
 
     @cards.setter
-    def cards(self, v: CardsType):
+    def cards(self, v: Union[List[int], np.ndarray]):
         if not v:
             self.pass_()
         else:

@@ -2,6 +2,7 @@
 import numpy as np
 
 from ai.provider import Provider
+from card.combo import Combo
 
 
 def test_state_provider():
@@ -18,3 +19,14 @@ def test_state_provider():
         actions, min_value, max_value = i
         assert Provider.StateProvider._f_min(actions) == min_value
         assert Provider.StateProvider._f_max(actions) == max_value
+
+
+def test_provide():
+    provider = Provider(1, 1)
+    result = provider.provide([3, 4, 5, 6, 7, 9], 6, 6, 1)
+    print(result)
+
+    combo = Combo()
+    combo.cards = [13, 13]
+    result = provider.provide([4, 4, 4, 4, 7], 1, 1, 2, combo)
+    print(result)

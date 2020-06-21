@@ -1,18 +1,20 @@
 # -*- coding: utf-8 -*-
-from typing import Tuple, Dict
+from typing import Tuple, Dict, List, Union
+
+import numpy as np
 
 from card import *
 from card import CARD_VIEW
 
 
-def has_rocket(card: CardsType) -> bool:
+def has_rocket(card: Union[np.ndarray, List[int]]) -> bool:
     """
     一副牌中是否含大小王
     """
     return len(card) >= 2 and card[-2] == CARD_G0
 
 
-def card_lt2(card: CardsType):
+def card_lt2(card: Union[np.ndarray, List[int]]):
     """
     获取一副牌中所有小于2的牌
     """
@@ -28,7 +30,7 @@ def card_lt2_two_g(card: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray
     return card[card < CARD_2], card[card == CARD_2], card[card > CARD_2]
 
 
-def card_split(card: CardsType) -> List[np.ndarray]:
+def card_split(card: Union[np.ndarray, List[int]]) -> List[np.ndarray]:
     """
     分解不连续的牌
     @note: 2和大小王不应当在里面

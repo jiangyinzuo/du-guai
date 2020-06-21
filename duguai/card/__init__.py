@@ -1,7 +1,4 @@
 # -*- coding: utf-8 -*-
-from typing import Union, List
-
-import numpy as np
 
 CARD_3, CARD_4, CARD_5, CARD_6, CARD_7 = 1, 2, 3, 4, 5
 CARD_8, CARD_9, CARD_10, CARD_J, CARD_Q = 6, 7, 8, 9, 10
@@ -19,6 +16,3 @@ VIEW_TO_VALUE: dict = {
     'Q': CARD_Q, 'K': CARD_K, 'A': CARD_A, '2': CARD_2, 'g': CARD_G0,
     'G': CARD_G1
 }
-
-CardsType = Union[List[int], np.ndarray]
-ActionsType = Union[List[np.ndarray], List[List[int]]]

@@ -27,7 +27,7 @@ class AbstractDecomposer(metaclass=ABCMeta):
     """
 
     @staticmethod
-    def decompose_value(card: CardsType) -> int:
+    def decompose_value(card: List[int]) -> int:
         """
         获取一副牌的分解值
         """
@@ -70,7 +70,7 @@ class AbstractDecomposer(metaclass=ABCMeta):
                 if np.sum(lt2_state == card) == 4 and len(a) < 4:
                     penalty = -1
                     break
-            next_state = get_next_state(lt2_state, a)
+            next_state: List[int] = get_next_state(lt2_state, a)
             if next_state or no_max_q:
                 result.append(self.decompose_value(next_state) + penalty)
             else:
@@ -80,7 +80,7 @@ class AbstractDecomposer(metaclass=ABCMeta):
 
     def _eval_actions(self,
                       func,
-                      lt2_state: CardsType,
+                      lt2_state: np.ndarray,
                       no_max_q: bool = False,
                       **kwargs) -> Tuple[np.ndarray, np.ndarray]:
         actions = np.array(
@@ -97,15 +97,15 @@ class AbstractDecomposer(metaclass=ABCMeta):
         args_res: np.ndarray = q_list == max_q
         return actions[args_res], q_list[args_res]
 
-    def _process_state(self, state: CardsType, last_combo: Combo = None):
+    def _process_state(self, state: List[int], last_combo: Combo = None):
         self._state = np.array(state)
 
         # 将手牌分解成不连续的部分
         self._lt2_cards, eq2_cards, self._ghosts = card_lt2_two_g(self._state)
-        self._lt2_states = card_split(self._lt2_cards)
+        self._lt2_states: List[np.ndarray] = card_split(self._lt2_cards)
         self.card2_count: int = len(eq2_cards)
         self._output: List[np.ndarray] = []
-        self._last_combo = last_combo
+        self._last_combo: Combo = last_combo
 
     @staticmethod
     def _max_q_actions(good_actions, q_lists, delta: int = 0, max_q: int = 0) -> np.ndarray:
@@ -175,7 +175,7 @@ class FollowDecomposer(AbstractDecomposer):
             q_lists: list = []
             max_q = -1
             for k, min_len in KIND_TO_MIN_LEN.items():
-                card_list = self._lt2_di[k]
+                card_list: list = self._lt2_di[k]
                 for card_len in range(min_len, len(card_list) + 1):
                     good_action, q_list = self._eval_actions(_get_seq_actions,
                                                              lt2_state,
@@ -191,7 +191,7 @@ class FollowDecomposer(AbstractDecomposer):
                     max_q = max(max_q, np.max(q_list))
             self._output.extend(self._max_q_actions(good_actions, q_lists, 1, max_q))
 
-    def get_good_follows(self, state, last_combo: Combo) -> List[np.ndarray]:
+    def get_good_follows(self, state: list, last_combo: Combo) -> List[np.ndarray]:
         """
         获取较好的跟牌行动。
         @param state: 当前手牌。
@@ -250,7 +250,7 @@ class PlayDecomposer(AbstractDecomposer):
     出牌拆牌器
     """
 
-    def _get_lt2_good_actions(self, lt2_state: CardsType) -> Iterable:
+    def _get_lt2_good_actions(self, lt2_state: np.ndarray) -> Iterable:
         """
         获取小于2的牌中当前状态下较好的拆牌
         """
@@ -280,7 +280,7 @@ class PlayDecomposer(AbstractDecomposer):
 
         return self._max_q_actions(good_actions, q_lists)
 
-    def get_good_plays(self, state: CardsType) -> List[np.ndarray]:
+    def get_good_plays(self, state: List[int]) -> List[np.ndarray]:
         """
         获取较好的出牌行动。
         @param state: 当前手牌。
@@ -299,7 +299,7 @@ class PlayDecomposer(AbstractDecomposer):
         return self._output
 
 
-def get_next_state(state: CardsType, action: CardsType) -> List[int]:
+def get_next_state(state: np.ndarray, action: np.ndarray) -> List[int]:
     """
     获取状态做出动作后的的下一个状态
     @param state: 状态
@@ -312,7 +312,7 @@ def get_next_state(state: CardsType, action: CardsType) -> List[int]:
     return next_state
 
 
-def _get_single_actions(state: CardsType, length: int) -> ActionsType:
+def _get_single_actions(state: np.ndarray, length: int) -> List[List[int]]:
     """
     获取所有单种牌面的动作（单，对，三，炸弹）
     @param state: 状态
@@ -329,7 +329,7 @@ def _get_single_actions(state: CardsType, length: int) -> ActionsType:
     return result
 
 
-def _get_seq_actions(card_list, kind: int, length: int) -> ActionsType:
+def _get_seq_actions(card_list: list, kind: int, length: int) -> List[List[int]]:
     """
     获取顺子/连对/飞机/炸弹的动作（单，对，三，炸弹）
     """
