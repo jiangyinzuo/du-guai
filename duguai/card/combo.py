@@ -67,13 +67,6 @@ def _four(di, value) -> int:
         # 4带2双
         elif len(di[2]) == 2 and not di[1]:
             return 21400 + value
-    elif len(di[4]) == 2:
-        # 无翼航天飞机
-        if not di[1] and not di[2]:
-            return 2400 + value
-        # 带翼航天飞机
-        elif len(di[1]) + len(di[2]) * 2 == 4:
-            return 12400 + value
 
     return INVALID_BIT
 
@@ -84,6 +77,14 @@ MAX_COUNT_STRATEGIES: tuple = (_one, _two, _three, _four)
 class Combo:
     """
     卡牌组合类
+
+    bit_info是一个取值范围在[-1, 30000)上的整数。
+    卡牌组合非法时bit_info = -1，王炸 bit_info = 0。
+    其它情况规则如下：
+    bit_info % 100 = 组合用于比较大小的值。组合类型为N带M时，取N中的最大值。其它时候取所有牌最大值。
+    bit_info // 100 % 10 = max(牌i的数量)。例如`AAA44`时取3，`667788`时取2
+    bit_info // 1000 % 10 = count(max(牌i的数量))。例如`667788`取3，`333444JK`取2
+    bit_info // 10000 = N带M中的M。例如`66`取0，`333J`取1。
     """
 
     def __calc_bit_info(self) -> int:
@@ -184,7 +185,7 @@ class Combo:
 
     def is_seq(self) -> bool:
         """
-        是否为一种序列（顺子/连对/飞机/炸弹
+        是否为一种序列（顺子/连对/飞机/炸弹）
         """
         return self.seq_len >= 2
 
@@ -248,20 +249,6 @@ class Combo:
             self._cards.sort()
             self._cards_view = cards_view(self._cards)
             self._bit_info = self.__calc_bit_info()
-
-    @property
-    def bit_info(self) -> int:
-        """
-        bit_info是一个取值范围在[-1, 30000)上的整数。
-        卡牌组合非法时bit_info = -1，王炸 bit_info = 0。
-        其它情况规则如下：
-        bit_info % 100 = 组合用于比较大小的值。组合类型为N带M时，取N中的最大值。其它时候取所有牌最大值。
-        bit_info // 100 % 10 = max(牌i的数量)。例如`AAA44`时取3，`667788`时取2
-        bit_info // 1000 % 10 = count(max(牌i的数量))。例如`667788`取3，`333444JK`取2
-        bit_info // 10000 = N带M中的M。例如`66`取0，`333J`取1。
-        @return: bit_info
-        """
-        return self._bit_info
 
     def is_bomb(self) -> bool:
         """

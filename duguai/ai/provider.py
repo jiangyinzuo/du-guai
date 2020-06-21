@@ -180,10 +180,9 @@ class Provider:
         x1：出单，x取【0-5】, 表示出 强行最小、最小、中、偏大、最大、强行最大的单
         x2：出对，x取【0-3】, 表示出 最小、中、偏大、最大的对
         xy3：出三，x取【0-2】, 表示出最小、中间、最大的三；y表示带单还是带对
-        x4：出长度为5的顺子，x取【0-1】，表示出较小的或较大的顺子
-        x5：出一个小的炸弹, x取【0-1】，表示出小炸弹或大炸弹
+        x5：出长度为5的顺子，x取【0-1】，表示出较小的或较大的顺子
+        xy4：出一个小的炸弹, x取【0-2】，表示出小炸弹或大炸弹或王炸, y表示带单还是带双还是不带
         6：出其它各种飞机连对顺子
-        xy7：出4带M, x表示炸弹长度，y表示带单还是带双还是不带
         """
 
         def __init__(self, outer: Provider):
@@ -228,11 +227,16 @@ class Provider:
                     action_list.extend([23, 123, 223])
             if len(hand.seq_solo5):
                 action_list.extend([4, 14])
-            if len(hand.bomb) or hand.has_rocket:
+            if hand.has_rocket:
+                action_list.append(15)
+            if len(hand.bomb):
                 action_list.extend([5, 15])
+                if len(hand.solo) >= 2 or len(hand.pair):
+                    action_list.append(117)
+                if len(hand.pair) >= 2:
+                    action_list.append(127)
             if len(hand.seq) > 0 or len(hand.plane) > 0:
                 action_list.append(6)
-            # TODO 4带M、航天飞机
             return action_list
 
         def provide_play(self, cards: CardsType, hand_p: int, hand_n: int) -> \

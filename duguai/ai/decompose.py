@@ -12,8 +12,8 @@ from card.cards import *
 from card.cards import card_lt2, card_split
 from card.combo import Combo
 
-"""顺子/连对/飞机/航天飞机最小的长度"""
-KIND_TO_MIN_LEN = {1: 5, 2: 3, 3: 2, 4: 2}
+"""顺子/连对/飞机/最小的长度"""
+KIND_TO_MIN_LEN = {1: 5, 2: 3, 3: 2}
 MAX_Q = 10000
 
 
@@ -34,41 +34,45 @@ class AbstractDecomposer(metaclass=ABCMeta):
         if len(card) == 0:
             return 0
         card = card_lt2(card)
-        di, result, _ = card_to_suffix_di(card)
+        di, d_value, _ = card_to_suffix_di(card)
 
         # 顺子/连对
         for t in range(1, 3):
             max_len = max(len(i) for i in card_split(di[t]))
             if max_len >= KIND_TO_MIN_LEN[t]:
-                result = max(result, t * max_len)
+                d_value = max(d_value, t * max_len)
 
         # 3连的个数
         trios = max(len(i) for i in card_split(di[3]))
-
-        # 4连的个数
-        quartet = max(len(i) for i in card_split(di[4]))
 
         # 单的个数, 对子的个数
         solo, pairs = len(di[1]) + len(di[2]) * 2, len(di[2])
 
         # 3带1，3带2，飞机
         if trios:
-            result = max(result, trios * 3 + (trios if solo >= trios else 0))
-            result = max(result, trios * 3 + (trios * 2 if pairs >= trios else 0))
-        # 4带2，航天飞机
-        if quartet:
-            result = max(result, quartet * 4 + (quartet if solo >= quartet else 0))
-            result = max(result, quartet * 4 + (quartet * 2 if pairs >= quartet else 0))
+            d_value = max(d_value, trios * 3 + (trios if solo >= trios else 0))
+            d_value = max(d_value, trios * 3 + (trios * 2 if pairs >= trios else 0))
+        # 4带2
+        if len(di[4]):
+            d_value = max(d_value, 4 + (2 if solo >= 2 or pairs >= 1 else 0))
+            d_value = max(d_value, 4 + (4 if pairs >= 2 else 0))
 
-        return result
+        return d_value
 
-    def _calc_d(self, lt2_state, actions, no_max_q: bool = False) -> np.ndarray:
-        """对每一种状态-动作计算其d值"""
+    def _calc_d_values(self, lt2_state: np.ndarray, actions, no_max_q: bool = False) -> np.ndarray:
+        """对每一种状态-动作计算其d_value"""
         result = []
         for a in actions:
+
+            # 拆炸弹的惩罚值
+            penalty: int = 0
+            for card in a:
+                if np.sum(lt2_state == card) == 4 and len(a) < 4:
+                    penalty = -1
+                    break
             next_state = get_next_state(lt2_state, a)
             if next_state or no_max_q:
-                result.append(self.decompose_value(next_state))
+                result.append(self.decompose_value(next_state) + penalty)
             else:
                 # 该动作打完就没牌了，故d值为最大值
                 result.append(MAX_Q)
@@ -83,10 +87,9 @@ class AbstractDecomposer(metaclass=ABCMeta):
             func(lt2_state, kwargs['length']) if 'card_list' not in kwargs.keys() else func(kwargs['card_list'],
                                                                                             kwargs['kind'],
                                                                                             kwargs['length']))
-
         # q = d(next state) + len(a)
         len_a = kwargs['length'] if 'card_list' not in kwargs.keys() else kwargs['length'] * kwargs['kind']
-        q_list: np.ndarray = self._calc_d(lt2_state, actions, no_max_q) + len_a
+        q_list: np.ndarray = self._calc_d_values(lt2_state, actions, no_max_q) + len_a
         if len(q_list) == 0:
             return np.array([]), np.array([])
         max_q = np.max(q_list)
@@ -218,11 +221,11 @@ class FollowDecomposer(AbstractDecomposer):
 
     def get_remain_follows_no_take(self, state, last_combo: Combo) -> List[np.ndarray]:
         """
-        获取所有的跟牌行动。
+        获取强行拆牌时剩余的跟牌行动。在get_good_follows没有理想结果，但是必须跟牌的情况下。
         @param state: 当前手牌。
         @param last_combo: 上一次出牌
         @note: last combo为N带M时，没有给出M
-        @return: 包含所有好的出牌类型的数组
+        @return: 包含剩余不好的出牌类型数组
         """
         if last_combo.is_rocket():
             return []
@@ -255,6 +258,7 @@ class PlayDecomposer(AbstractDecomposer):
         q_lists: list = []
         di, max_count, max_card_value = card_to_suffix_di(lt2_state)
 
+        # 拆单、对、三、炸弹
         for kind in range(1, max_count + 1):
             good_action, q_list = self._eval_actions(_get_single_actions,
                                                      lt2_state,

@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from card import CARD_2
+from card.combo import Combo
 from duguai.ai.decompose import *
 
 
@@ -42,18 +44,20 @@ def test_trio_with_one():
     print(decomposer.get_remain_follows_no_take([8, 8, 8, 9, 10], combo))
 
 
-def test_shuttle():
+def test_bomb():
     decomposer = PlayDecomposer()
     combo = Combo()
     combo.cards_view = '3 3 3 3 4 4 4 4 8'
     print(decomposer.get_good_plays(combo.cards))
 
 
-def test_get_all_follows_no_take():
+def test_get_remain_follows_no_take():
     """测试get_all_follows_no_take的特性"""
     decomposer = FollowDecomposer()
     combo = Combo()
     combo.cards = [3, 7, 7, 7]
+
+    assert len(decomposer.get_good_follows([8, 8, 9, 10], combo)) == 2
 
     # 不会带单或者带双
     assert len(decomposer.get_good_follows([8, 8, 8, 8, 9, 10], combo)) == 3
@@ -64,4 +68,3 @@ def test_get_all_follows_no_take():
     # 强行拆牌
     assert len(decomposer.get_good_follows([4, 5, 6, 7, 8, 9, 10, 11, 12], combo)) == 0
     assert len(decomposer.get_remain_follows_no_take([4, 5, 6, 7, 8, 9, 10, 11, 12], combo)) == 4
-
