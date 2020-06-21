@@ -121,9 +121,6 @@ class FollowDecomposer(AbstractDecomposer):
     跟牌拆牌器
     """
 
-    def __init__(self):
-        self._lt2_di = None
-
     def _add_bomb(self, bomb_list: list) -> None:
         """添加炸弹"""
 
@@ -176,7 +173,8 @@ class FollowDecomposer(AbstractDecomposer):
             q_lists: list = []
             max_q = -1
             for k, min_len in KIND_TO_MIN_LEN.items():
-                card_list: list = self._lt2_di[k]
+                # lt2_state中所有数量大于等于k的牌
+                card_list: list = list(set(i for i in lt2_state if sum(lt2_state == i) >= k))
                 for card_len in range(min_len, len(card_list) + 1):
                     good_action, q_list = self._eval_actions(_get_seq_actions,
                                                              lt2_state,
@@ -203,9 +201,7 @@ class FollowDecomposer(AbstractDecomposer):
             return []
         self._process_state(state, last_combo)
 
-        self._lt2_di = card_to_suffix_di(self._lt2_cards)[0]
-
-        self._add_bomb(self._lt2_di[4])
+        self._add_bomb(card_to_di(self._lt2_cards)[0][4])
 
         if last_combo.has_solo():
             self._add_single(1, self._last_combo.value if last_combo.is_solo() else -1)
@@ -232,9 +228,7 @@ class FollowDecomposer(AbstractDecomposer):
             return []
         self._process_state(state, last_combo)
 
-        self._lt2_di = card_to_suffix_di(self._lt2_cards)[0]
-
-        self._add_bomb(self._lt2_di[4])
+        self._add_bomb(card_to_di(self._lt2_cards)[0][4])
 
         if last_combo.is_single():
             actions = _get_single_actions(state, last_combo.kind)
