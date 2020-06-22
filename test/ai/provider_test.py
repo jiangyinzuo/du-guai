@@ -31,3 +31,6 @@ def test_provide():
     combo.cards = [13, 13]
     result = provider.provide([4, 4, 4, 4, 7], 1, 1, 2, combo)
     print(result)
+
+    result = provider.provide([2, 2, 3, 4, 4, 5, 6, 8, 11, 12, 13], 10, 10, 1)
+    print(result)

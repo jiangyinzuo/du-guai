@@ -33,11 +33,10 @@ class Human(GameEnv.AbstractPlayer):
         玩家跟牌
         """
         while True:
-            cards_v = input('你的手牌:{}\n>>> (输入要出的牌，以空格分隔。直接回车代表空过。)'.format(cards_view(self.hand)))
+            cards_v = input('你的手牌:{}\n>>> (输入要出的牌，以空格分隔。直接回车代表空过。)'
+                            .format(cards_view(self.hand))).upper()
             self.last_combo.cards_view = cards_v
-            if not cards_v or is_in(self.last_combo.cards, self.hand) and \
-                    self.last_combo.is_valid() and \
-                    self.last_combo > self.game_env.former_combo:
+            if self.valid_follow():
                 break
             else:
                 print('输入非法!')

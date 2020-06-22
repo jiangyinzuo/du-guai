@@ -51,6 +51,8 @@ class Robot(GameEnv.AbstractPlayer):
             last_combo=self.game_env.former_combo)
         action: int = get_action(state, actions)
         self.last_combo.cards = self.__executor.execute(action, good_hand, bad_hand, self.game_env.former_combo)
+        if not self.valid_follow():
+            raise ValueError('AI跟牌不合法')
 
     @_remove_last_combo
     def play(self) -> None:
@@ -64,3 +66,5 @@ class Robot(GameEnv.AbstractPlayer):
             last_combo_owner=self.game_env.last_combo_owner)
         action: int = get_action(state, actions)
         self.last_combo.cards = self.__executor.execute(action, good_hand)
+        if not self.last_combo.is_valid():
+            raise ValueError('AI跟牌非法')

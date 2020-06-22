@@ -42,6 +42,6 @@ if __name__ == '__main__':
     try:
         game_env.start()
     except Exception as e:
-        logging.exception(e)
+        traceback.format_exc()
         if mode == 'debug':
             log_locals(e)

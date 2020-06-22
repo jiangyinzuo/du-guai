@@ -13,6 +13,7 @@ import numpy as np
 
 from card.cards import cards_view
 from card.combo import Combo
+from utils import is_in
 
 _SPLIT_LINE = '------------------------------------'
 
@@ -95,6 +96,16 @@ class GameEnv:
             先手出牌
             """
             pass
+
+        def valid_follow(self) -> bool:
+            """
+            判断跟牌是否合法
+            @return: 合法：True；非法：False
+            """
+            return self.last_combo.cards.size == 0 or is_in(
+                self.last_combo.cards,
+                self.hand
+            ) and self.last_combo.is_valid() and self.last_combo > self.game_env.former_combo
 
     def __init__(self):
 
@@ -222,7 +233,6 @@ class GameEnv:
                 self._last_combo_owner = self.turn
                 self._former_combo = self.players[self.turn].last_combo
 
-                print(_SPLIT_LINE)
                 print(self.cur_identity + '打出了：' + self._former_combo.cards_view)
             else:
                 print(self.cur_identity + '空过')

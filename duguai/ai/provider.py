@@ -170,10 +170,23 @@ class Provider:
         x1：出单，x取【0-5】, 表示出 强行最小、最小、中、偏大、最大、强行最大的单
         x2：出对，x取【1-4】, 表示出 最小、中、偏大、最大的对
         xy3：出三，x取【0-2】, 表示出最小、中间、最大的三；y表示带单还是带对
-        x5：出长度为5的顺子，x取【0-1】，表示出较小的或较大的顺子
         xy4：出一个小的炸弹, x取【0-2】，表示出小炸弹或大炸弹或王炸, y表示带单还是带双还是不带
+        x5：出长度为5的顺子，x取【0-1】，表示出较小的或较大的顺子
         6：出其它各种飞机连对顺子
         """
+
+        PASS = 0
+        MIN_SOLO = 1
+        MAX_SOLO = 51
+        PAIRS = [12, 22, 32, 42]
+
+        LITTLE_BOMB = 4
+        BIG_BOMB = 104
+        ROCKET = 204
+        FOUR_TAKE_ONE = 14
+        FOUR_TAKE_TWO = 24
+
+        OTHER_SEQ = 6
 
         def __init__(self, outer: Provider):
             self._outer: Provider = outer
@@ -199,28 +212,28 @@ class Provider:
                 if min_card != -1:
                     hand.min_solo = min_card
 
-        @staticmethod
-        def _add_solo_actions(hand, action_list):
+        @classmethod
+        def _add_solo_actions(cls, hand, action_list):
             if hand.min_solo:
-                action_list.append(1)
+                action_list.append(cls.MIN_SOLO)
             if len(hand.solo):
                 action_list.extend([11, 21, 31, 41])
             if hand.max_solo:
-                action_list.append(51)
+                action_list.append(cls.MAX_SOLO)
 
-        @staticmethod
-        def _add_bomb_actions(hand, action_list):
+        @classmethod
+        def _add_bomb_actions(cls, hand, action_list):
             if hand.has_rocket:
-                action_list.append(14)
+                action_list.append(cls.ROCKET)
             if len(hand.bomb):
                 if len(hand.bomb) == 1:
-                    action_list.append(4)
+                    action_list.append(cls.LITTLE_BOMB)
                 else:
-                    action_list.extend([4, 14])
+                    action_list.extend([cls.LITTLE_BOMB, cls.BIG_BOMB])
                 if len(hand.solo) >= 2 or len(hand.pair):
-                    action_list.append(117)
+                    action_list.append(cls.FOUR_TAKE_ONE)
                 if len(hand.pair) >= 2:
-                    action_list.append(127)
+                    action_list.append(cls.FOUR_TAKE_TWO)
 
         @staticmethod
         def _has_take(hand, take_kind: int, take_num: int) -> bool:
@@ -236,19 +249,19 @@ class Provider:
             action_list = []
             if last_combo is None or last_combo.is_solo():
                 self._add_solo_actions(hand, action_list)
-            if last_combo is None or last_combo.is_pair() and len(hand.pair):
-                action_list.extend([12, 22, 32, 42])
-            if len(hand.trio):
+            if (last_combo is None or last_combo.is_pair()) and hand.pair:
+                action_list.extend(self.PAIRS)
+            if hand.trio:
                 action_list.extend([3, 103, 103])
-                if len(hand.solo):
+                if hand.solo:
                     action_list.extend([13, 113, 123])
-                if len(hand.pair):
+                if hand.pair:
                     action_list.extend([23, 123, 223])
-            if len(hand.seq_solo5):
+            if hand.seq_solo5:
                 action_list.extend([5, 15])
             self._add_bomb_actions(hand, action_list)
-            if len(hand.seq) > 0 or len(hand.plane) > 0 and self._has_take(hand, 1, 2):
-                action_list.append(6)
+            if hand.seq or hand.plane and self._has_take(hand, 1, 2):
+                action_list.append(self.OTHER_SEQ)
             return action_list
 
         def provide_play(self, cards: List[int], hand_p: int, hand_n: int) -> \
@@ -288,7 +301,7 @@ class Provider:
             bad_d_actions = self._follow_decomposer.get_remain_follows_no_take(cards, last_combo)
             good_hand: Hand = Hand(cards, d_actions)
             bad_hand: Hand = Hand(cards, bad_d_actions)
-            action_list = [0]
+            action_list = [self.PASS]
             action_list.extend(self._add_actions(good_hand, last_combo))
             action_list.extend(self._add_actions(bad_hand, last_combo))
             return good_hand, bad_hand, list(set(action_list))
