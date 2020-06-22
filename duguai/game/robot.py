@@ -44,7 +44,7 @@ class Robot(GameEnv.AbstractPlayer):
         AI跟牌
         """
         state, actions, good_hand, bad_hand = self.provider.provide(
-            list(self.hand),
+            self.hand,
             hand_p=self.game_env.hand_p,
             hand_n=self.game_env.hand_n,
             last_combo_owner=self.game_env.last_combo_owner,
@@ -60,7 +60,7 @@ class Robot(GameEnv.AbstractPlayer):
         AI出牌
         """
         state, actions, good_hand, _ = self.provider.provide(
-            list(self.hand),
+            self.hand,
             hand_p=self.game_env.hand_p,
             hand_n=self.game_env.hand_n,
             last_combo_owner=self.game_env.last_combo_owner)

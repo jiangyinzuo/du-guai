@@ -18,37 +18,67 @@ class Hand:
     对手牌进行进一步分类的类
     """
 
-    def __init__(self, cards: List[int], d_actions):
-        self._cards: List[int] = cards
+    def __init__(self, cards: np.ndarray, d_actions, last_combo: Combo):
+        """
+        初始化Hand类
+        @param cards: 玩家的初始手牌
+        @param d_actions: 经过初步分解后的行动。（初步分解在decompose.py模块下）
+        @param last_combo: 上一个出牌的Combo
+        @see decompose.py
+        """
+        self._cards: np.ndarray = cards
         self._solo: List[np.ndarray] = []
         self._pair: List[np.ndarray] = []
         self._trio: List[np.ndarray] = []
         self._bomb: List[np.ndarray] = []
         self._plane: List[np.ndarray] = []
         self._seq_solo5: List[np.ndarray] = []
-        self._seq: List[np.ndarray] = []
-        self._has_rocket: bool
+        self._other_seq: List[np.ndarray] = []
+        self._has_rocket: bool = False
         self._min_solo = None
         self._max_solo = None
+        self._last_combo = last_combo
 
         self.__part_action(d_actions)
+        self.find_valid_plane()
 
     def __part_action(self, d_actions: List[np.ndarray]) -> None:
-        self._has_rocket = False
+        """对d_action进行初步分类"""
+
         for a in d_actions:
-            if not self._has_rocket and len(a) == 2 and a[-1] == CARD_G1:
+
+            # 含王炸
+            if len(a) == 2 and a[-1] == CARD_G1:
                 self._has_rocket = True
+
+            # 分类单牌
             if 1 <= len(a) <= 4:
                 (self.solo, self.pair, self.trio, self.bomb)[len(a) - 1].append(a)
+
+            # 分类长度为5的单顺
             elif len(a) == 5 and a[0] == a[1] - 1 == a[3] - 3 == a[4] - 4:
                 self.seq_solo5.append(a)
+
+            # 分类飞机
             elif len(a) % 3 == 0 and a[0] == a[2] and a[0] != a[3]:
                 self.plane.append(a)
+
+            # 分类其它顺子
             else:
-                self.seq.append(a)
+                self.other_seq.append(a)
+
+    def find_valid_other_seq(self):
+        """
+        找到合法的顺子/连对
+        """
+
+    def find_valid_plane(self):
+        """
+        找到合法的飞机
+        """
 
     @property
-    def cards(self) -> List[int]:
+    def cards(self) -> np.ndarray:
         """玩家原始的卡牌"""
         return self._cards
 
@@ -78,9 +108,9 @@ class Hand:
         return self._plane
 
     @property
-    def seq(self) -> List[np.ndarray]:
+    def other_seq(self) -> List[np.ndarray]:
         """其它各种序列"""
-        return self._seq
+        return self._other_seq
 
     @property
     def seq_solo5(self) -> List[np.ndarray]:
@@ -141,7 +171,7 @@ class Provider:
         """
         return (self.__player_id - self.__landlord_id + 3) % 3
 
-    def provide(self, cards: List[int], hand_p: int, hand_n: int, last_combo_owner: int, last_combo: Combo = None) \
+    def provide(self, cards: np.ndarray, hand_p: int, hand_n: int, last_combo_owner: int, last_combo: Combo = None) \
             -> Tuple[np.ndarray, List[int], Hand, Hand]:
         """
         提供状态和动作
@@ -172,7 +202,8 @@ class Provider:
         xy3：出三，x取【0-2】, 表示出最小、中间、最大的三；y表示带单还是带对
         xy4：出一个小的炸弹, x取【0-2】，表示出小炸弹或大炸弹或王炸, y表示带单还是带双还是不带
         x5：出长度为5的顺子，x取【0-1】，表示出较小的或较大的顺子
-        6：出其它各种飞机连对顺子
+        6：出其它连对顺子
+        7：出飞机
         """
 
         PASS = 0
@@ -187,6 +218,7 @@ class Provider:
         FOUR_TAKE_TWO = 24
 
         OTHER_SEQ = 6
+        PLANE = 7
 
         def __init__(self, outer: Provider):
             self._outer: Provider = outer
@@ -197,7 +229,7 @@ class Provider:
             self._split_min_solo: bool = True
             self.action_list: List[int] = []
 
-        def _split_solo(self, cards: List[int], hand: Hand):
+        def _split_solo(self, cards: np.ndarray, hand: Hand):
             self._split_min_solo = False
             min_card = np.min(cards)
             if min_card < CARD_6:
@@ -260,17 +292,19 @@ class Provider:
             if hand.seq_solo5:
                 action_list.extend([5, 15])
             self._add_bomb_actions(hand, action_list)
-            if hand.seq or hand.plane and self._has_take(hand, 1, 2):
-                action_list.append(self.OTHER_SEQ)
+
+            # 找到合法的序列并加入到action_list中
+            hand.find_valid_other_seq(last_combo)
+            hand.find_valid_plane(last_combo)
             return action_list
 
-        def provide_play(self, cards: List[int], hand_p: int, hand_n: int) -> \
+        def provide_play(self, cards: np.ndarray, hand_p: int, hand_n: int) -> \
                 Tuple[Hand, List[int]]:
             """
             提供出牌时候的actions
-            @param cards:
-            @param hand_p:
-            @param hand_n:
+            @param cards: 玩家当前的手牌
+            @param hand_p: 上一个玩家的手牌数
+            @param hand_n: 下一个玩家的手牌数
             """
             self.action_list: List[int] = []
             d_actions = self._play_decomposer.get_good_plays(cards)
@@ -289,8 +323,8 @@ class Provider:
 
             return hand, self._add_actions(hand)
 
-        def provide_follow(self, cards: List[int], last_combo: Combo) \
-                -> Tuple[Hand, Hand, List[int]]:
+        def provide_follow(self, cards: np.ndarray, last_combo: Combo) \
+                -> Tuple[Hand, List[int]]:
             """
             提供跟牌时候的action
             @param cards:
@@ -298,13 +332,10 @@ class Provider:
             """
             self.action_list: List[int] = []
             d_actions = self._follow_decomposer.get_good_follows(cards, last_combo)
-            bad_d_actions = self._follow_decomposer.get_remain_follows_no_take(cards, last_combo)
             good_hand: Hand = Hand(cards, d_actions)
-            bad_hand: Hand = Hand(cards, bad_d_actions)
             action_list = [self.PASS]
             action_list.extend(self._add_actions(good_hand, last_combo))
-            action_list.extend(self._add_actions(bad_hand, last_combo))
-            return good_hand, bad_hand, list(set(action_list))
+            return good_hand, list(set(action_list))
 
     class StateProvider:
         """
@@ -392,7 +423,7 @@ class Provider:
                 state_vector[4:6] = self._f_min(hand.pair, 2), self._f_max(hand.pair, 2)
             if len(hand.seq_solo5):
                 state_vector[6] = np.max(hand.seq_solo5)
-            if len(hand.seq) > 0 or len(hand.plane) > 0:
+            if len(hand.other_seq) > 0 or len(hand.plane) > 0:
                 state_vector[7] = 1
             bomb_count = 2 if len(hand.bomb) > 2 else len(hand.bomb)
             state_vector[8] = bomb_count

@@ -159,7 +159,7 @@ class Combo:
         return self._bit_info // 100 % 100 == 12
 
     @property
-    def with_kind(self) -> int:
+    def take_kind(self) -> int:
         """
         带牌的种类
         """
@@ -193,6 +193,10 @@ class Combo:
         """
         return self.seq_len >= 2
 
+    def has_no_take(self) -> bool:
+        """是否不带单/对"""
+        return self._bit_info // 10000 == 0
+
     @property
     def seq_len(self) -> int:
         """
@@ -201,7 +205,7 @@ class Combo:
         return self._bit_info // 1000 % 10
 
     @property
-    def kind(self) -> int:
+    def main_kind(self) -> int:
         """
         单种牌或序列类型
         """

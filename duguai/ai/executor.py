@@ -21,8 +21,8 @@ class Executor:
     def __init__(self):
         self._action = None
         self._hand: Union[Hand, None] = None
-        self._bad_hand = None
         self._last_combo_value: int = -1
+        self._last_combo: Union[Combo, None] = None
 
     @staticmethod
     def _pick(value, actions: List[np.ndarray]) -> np.ndarray:
@@ -45,21 +45,20 @@ class Executor:
             return np.array([self._hand.max_solo])
         if self._hand.solo:
             return self._pick(self._action // 10, self._hand.solo)
-        return self._pick(self._action // 10, self._bad_hand.solo)
+        raise ValueError('没有单')
 
     def _pair_execute(self) -> np.ndarray:
         """出对"""
         if self._hand.pair:
             return self._pick(self._action // 10, self._hand.pair)
-        return self._pick(self._action // 10, self._bad_hand.pair)
+        raise ValueError('没有对')
 
     def _trio_execute(self) -> np.ndarray:
         """出三带零/一/二"""
         if self._hand.trio:
             trio = self._pick(self._action // 100, self._hand.trio)
         else:
-            trio = self._pick(self._action // 100, self._bad_hand.trio)
-
+            raise ValueError('要出三却没有三')
         # 三带一
         if self._action // 10 % 10 == 1:
             take = self._get_take(1, 1)
@@ -72,6 +71,8 @@ class Executor:
 
     def _get_take(self, kind: int, length: int) -> np.ndarray:
         """获取带几的牌"""
+        if kind == 0:
+            return np.array([])
         if length == 1:
             if kind == 1:
                 return self._pick(1, self._hand.solo if self._hand.solo else self._bad_hand.solo)
@@ -120,25 +121,49 @@ class Executor:
                 return seq
         raise ValueError('找不到长度为5的顺子')
 
+    @staticmethod
+    def _find_valid_seq(seq: List[np.ndarray], bad_seq: List[np.ndarray], value: int):
+        for h in seq:
+            if h[-1] > value:
+                return np.array(h)
+        for h in bad_seq:
+            if h[-1] > value:
+                return np.array(h)
+        raise ValueError('找不到合适的序列')
+
+    def _any_seq(self) -> np.ndarray:
+        if self._hand.other_seq:
+            return self._hand.other_seq[0]
+        if self._hand.plane:
+            takes = self._get_take(1, len(self._hand.plane[0]) // 3)
+            if takes.size <= 0:
+                takes = self._get_take(2, len(self._hand.plane[0]) // 3)
+            return np.concatenate([takes, self._hand.plane[0]])
+        raise ValueError('找不到合适的序列')
+
     def _other_seq_execute(self) -> np.ndarray:
         if self._last_combo_value == -1:
-            if self._hand.seq:
-                return self._hand.seq[0]
-            if self._hand.plane:
-                takes = self._get_take(1, len(self._hand.plane[0]) // 3)
-                if takes.size <= 0:
-                    takes = self._get_take(2, len(self._hand.plane[0]) // 3)
-                return np.concatenate([takes, self._hand.plane[0]])
+            return self._any_seq()
         else:
-            # TODO
-            raise NotImplementedError('还没写完')
+            kind = self._last_combo.main_kind
+            seq_len = self._last_combo.seq_len
+            take_kind = self._last_combo.take_kind
+            value = self._last_combo.value
 
-    def execute(self, action: int, hand: Hand, bad_hand: Hand = None, last_combo: Combo = None) -> np.ndarray:
+            takes = self._get_take(take_kind, seq_len)
+
+            # 三带M
+            if kind >= 3:
+                seq = self._find_valid_seq(self._hand.plane, self._bad_hand.plane, value)
+                return np.concatenate([takes, seq])
+
+            return self._find_valid_seq(self._hand.other_seq, self._bad_hand.other_seq, value)
+
+    def execute(self, action: int, hand: Hand, last_combo: Combo = None) -> np.ndarray:
         """
         给出要AI的决策对应实际要打出来的牌
         @param action: AI通过Q-learning算法给出的动作
         @param hand: 好的拆牌
-        @param bad_hand: 差的拆牌
         @param last_combo: 上一次出牌的combo
         @return: 要打出的牌
         """
@@ -148,7 +173,7 @@ class Executor:
             return np.array([])
         self._hand = hand
         self._action = action
-        self._bad_hand = bad_hand
+        self._last_combo = last_combo
         self._last_combo_value = last_combo.value if last_combo else -1
 
         execute_tuple = (self._solo_execute,
