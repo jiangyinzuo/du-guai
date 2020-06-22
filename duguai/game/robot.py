@@ -2,7 +2,7 @@
 from ai import process
 from ai.call_landlord import get_svc, z_score
 from ai.executor import Executor
-from ai.provider import Provider
+from ai.provider import AbstractProvider
 from ai.q_learning import get_action
 from card.cards import cards_view
 from duguai import mode
@@ -18,7 +18,7 @@ class Robot(GameEnv.AbstractPlayer):
     def __init__(self, game_env: GameEnv, order: int):
         super().__init__(game_env, order)
         self.svc = get_svc()
-        self.provider = Provider(order)
+        self.provider = AbstractProvider(order)
         self.__landlord_id: int = 0
         self.__executor = Executor()
 
@@ -36,7 +36,7 @@ class Robot(GameEnv.AbstractPlayer):
         AI保存地主玩家ID
         """
         self.__landlord_id = landlord_id
-        self.provider.add_landlord(landlord_id)
+        self.provider.add_landlord_id(landlord_id)
 
     @_remove_last_combo
     def follow(self) -> None:

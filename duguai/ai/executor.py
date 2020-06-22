@@ -7,7 +7,7 @@ from typing import Union, List
 
 import numpy as np
 
-from ai.provider import Hand, Provider
+from ai.provider import Hand, AbstractProvider
 from card import CARD_G1, CARD_G0
 from card.combo import Combo
 
@@ -39,9 +39,9 @@ class Executor:
 
     def _solo_execute(self) -> np.ndarray:
         """出单"""
-        if self._action == Provider.ActionProvider.MIN_SOLO:
+        if self._action == AbstractProvider.ActionProvider.MIN_SOLO:
             return np.array([self._hand.min_solo])
-        if self._action == Provider.ActionProvider.MAX_SOLO:
+        if self._action == AbstractProvider.ActionProvider.MAX_SOLO:
             return np.array([self._hand.max_solo])
         if self._hand.solo:
             return self._pick(self._action // 10, self._hand.solo)
@@ -91,14 +91,14 @@ class Executor:
 
     def _quadplex_or_bomb_execute(self) -> np.ndarray:
         """打出炸弹或四带二或王炸"""
-        if self._action == Provider.ActionProvider.ROCKET:
+        if self._action == AbstractProvider.ActionProvider.ROCKET:
             return np.array([CARD_G0, CARD_G1])
-        elif self._action == Provider.ActionProvider.LITTLE_BOMB:
+        elif self._action == AbstractProvider.ActionProvider.LITTLE_BOMB:
             return np.array(self._hand.bomb[0] if self._hand.bomb else self._bad_hand.bomb[0])
-        elif self._action == Provider.ActionProvider.BIG_BOMB:
+        elif self._action == AbstractProvider.ActionProvider.BIG_BOMB:
             return np.array(self._hand.bomb[-1] if self._hand.bomb else self._bad_hand.bomb[-1])
 
-        if self._action == Provider.ActionProvider.FOUR_TAKE_ONE:
+        if self._action == AbstractProvider.ActionProvider.FOUR_TAKE_ONE:
             take = self._get_take(1, 2)
         else:
             take = self._get_take(2, 2)

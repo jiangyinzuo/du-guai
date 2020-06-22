@@ -271,7 +271,7 @@ class FollowDecomposer(AbstractDecomposer):
             if combo.value > self._max_combo.value:
                 self._max_combo = deepcopy(combo)
 
-    def _thieve_valid_actions(self) -> List[np.ndarray]:
+    def _thieve_valid_actions(self) -> Tuple[int, List[np.ndarray]]:
 
         combo = Combo()
         take_kind = self._last_combo.take_kind
@@ -293,36 +293,38 @@ class FollowDecomposer(AbstractDecomposer):
                 self._add_to_main_lists_and_find_max(combo, a, q, max_q)
 
         if not self._main_lists:
-            return []
+            return 0, []
 
         if take_kind:
             self._thieve_valid_main_takes()
-            return self._main_take_lists[min(self._main_take_lists.keys())]
+            min_delta_q = min(self._main_take_lists.keys())
+            return min_delta_q, self._main_take_lists[min_delta_q]
 
         self._max_main_takes = self._max_combo.cards
-        return self._main_lists[min(self._main_lists.keys())]
+        min_delta_q = min(self._main_lists.keys())
+        return min_delta_q, self._main_lists[min_delta_q]
 
     def get_good_follows(self, state: np.ndarray, last_combo: Combo) \
-            -> Tuple[List[np.ndarray], List[np.ndarray], np.ndarray]:
+            -> Tuple[List[np.ndarray], int, List[np.ndarray], np.ndarray]:
         """
         尽量给出较好的跟牌行动。
         @param state: 当前手牌。
         @param last_combo: 上一次出牌
-        @return: 三元组：炸弹, 好的出牌的数组, 最大的出牌
+        @return: 四元组：炸弹, 最好的组合 - 最好的跟牌(数字越大越不应该这样拆牌), 好的出牌的数组, 最大的出牌
         """
         if last_combo.is_rocket():
-            return [], [], np.array([], dtype=int)
+            return [], 0, [], np.array([], dtype=int)
 
         self._process_state(state, last_combo)
         self._init()
 
-        self._output = self._thieve_valid_actions()
+        min_delta_q, self._output = self._thieve_valid_actions()
 
         self._add_bomb(card_to_di(self._lt2_cards)[0][4])
 
         self._max_combo.cards = self._max_main_takes
 
-        return self._bomb_list, self._output, (
+        return self._bomb_list, min_delta_q, self._output, (
             self._max_main_takes if self._max_combo > last_combo else np.array([], dtype=int))
 
 

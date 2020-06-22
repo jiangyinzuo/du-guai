@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 import numpy as np
 
-from ai.provider import Provider
+from ai.provider import AbstractProvider
 from card.combo import Combo
 
 
@@ -17,13 +17,13 @@ def test_state_provider():
     # 测试 _f1_min, _f1_max
     for i in test_data:
         actions, min_value, max_value = i
-        assert Provider.StateProvider._f_min(actions) == min_value
-        assert Provider.StateProvider._f_max(actions) == max_value
+        assert AbstractProvider.StateProvider._f_min(actions) == min_value
+        assert AbstractProvider.StateProvider._f_max(actions) == max_value
 
 
 def test_provide():
-    provider = Provider(1)
-    provider.add_landlord(1)
+    provider = AbstractProvider(1)
+    provider.add_landlord_id(1)
     result = provider.provide([3, 4, 5, 6, 7, 9], 6, 6, 1)
     print(result)
 

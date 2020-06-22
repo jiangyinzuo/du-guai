@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 from duguai.ai.decompose import *
 
 
