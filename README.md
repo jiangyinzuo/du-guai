@@ -25,6 +25,11 @@ python main.py
 - script：一些脚本程序（如数据生成脚本）
 - test：单元测试
 
+#### 配置说明
+配置文件为duguai/.env
+
+调试/生产模式：mode = debug/prod
+开启/关闭测试：test = on/off
+
 #### 斗地主规则
 [RULES.md](./RULES.md)
-
