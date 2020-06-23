@@ -140,7 +140,7 @@ class PlayProvider(AbstractProvider):
 
     class StateProvider:
         """
-        AI出牌或跟牌时，给AI提供状态的类
+        AI出牌时，给AI提供状态的类
         状态是一个长度为12的特征向量。特征的含义以及取值范围如下：
         （备注：// 表示整除）
 
@@ -239,7 +239,7 @@ class FollowProvider(AbstractProvider):
 
     状态说明               属性名                 取值范围（均为整数）
     ------------------------------------------------------------
-    最佳拆牌的delta_q       delta_q               [0, 5]
+    最佳拆牌的delta_q       delta_q 越大越拆得差    [0, 5]
     玩家身份                player               [0, 2]
     上一个牌是谁打的         last_combo_owner      [0, 2]
     上家手牌数-1            hand_p(大于5都记作5)    [0, 5]

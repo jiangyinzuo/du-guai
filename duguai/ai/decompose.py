@@ -30,14 +30,25 @@ class AbstractDecomposer(metaclass=ABCMeta):
     """
 
     @staticmethod
-    def decompose_value(card: np.ndarray) -> int:
+    def __calc_trios_decompose_value(d_value: int, solo: int, pairs: int, trios: int, card_before: np.ndarray,
+                                     action: np.ndarray) -> int:
+        if solo + pairs * 2 >= trios:
+            d_value = max(d_value, trios * 4)
+        if pairs >= trios:
+            d_value = max(d_value, trios * 5)
+        if len(action) == 1 and sum(card_before == action[0]) == 1:
+            d_value += 1
+        return d_value
+
+    @classmethod
+    def decompose_value(cls, card_before: np.ndarray, card_after: np.ndarray, action: np.ndarray) -> int:
         """
         获取一副牌的分解值
         """
-        if len(card) == 0:
+        if len(card_after) == 0:
             return 0
-        card = card_lt2(card)
-        di, d_value, _ = card_to_suffix_di(card)
+        card_after = card_lt2(card_after)
+        di, d_value, _ = card_to_suffix_di(card_after)
 
         # 顺子/连对
         for t in range(1, 3):
@@ -53,7 +64,9 @@ class AbstractDecomposer(metaclass=ABCMeta):
 
         # 3带1，3带2，飞机
         if trios:
-            d_value = max(d_value, trios * 5)
+            d_value = cls.__calc_trios_decompose_value(
+                d_value, solo, pairs, trios, card_before, action
+            )
         # 4带2
         if len(di[4]):
             d_value = max(d_value, 4 + (2 if solo >= 2 or pairs >= 1 else 0))
@@ -65,14 +78,14 @@ class AbstractDecomposer(metaclass=ABCMeta):
         # 将要输出的好的牌型列表，每次调用前清空
         self._output: List[np.ndarray] = []
 
-    def _calc_d_values(self, lt2_state: np.ndarray, actions: np.ndarray[np.ndarray], no_max_q: bool = False) \
+    def _calc_q(self, lt2_state: np.ndarray, actions: np.ndarray[np.ndarray], no_max_q: bool = False) \
             -> np.ndarray:
-        """对每一种状态-动作计算其d_value"""
+        """对每一种状态-动作计算其Q"""
         result = []
         for a in actions:
 
             reward: int = 0
-            # 拆炸弹的惩罚值
+            # 拆炸弹的惩罚值，保证在 5 5 5 5 6的情况下拆出炸弹
             for card in a:
                 if np.sum(lt2_state == card) == 4 and len(a) < 4:
                     reward = -1
@@ -86,7 +99,8 @@ class AbstractDecomposer(metaclass=ABCMeta):
 
             next_state: np.ndarray = get_next_state(lt2_state, a)
             if next_state.size > 0 or no_max_q:
-                result.append(self.decompose_value(next_state) + reward)
+                d_value = self.decompose_value(lt2_state, next_state, a)
+                result.append(d_value + reward + len(a))
             else:
                 # 该动作打完就没牌了，故d值为最大值
                 result.append(MAX_Q)
@@ -103,10 +117,8 @@ class AbstractDecomposer(metaclass=ABCMeta):
                                                                                             kwargs['kind'],
                                                                                             kwargs['length']))
         # q = d(next state) + len(a)
-        len_a = kwargs['length'] if 'card_list' not in kwargs.keys() else kwargs['length'] * kwargs['kind']
-
         # 计算lt2_state下每一个action的q值
-        q_list: np.ndarray = self._calc_d_values(lt2_state, actions, no_max_q) + len_a
+        q_list: np.ndarray = self._calc_q(lt2_state, actions, no_max_q)
         if len(q_list) == 0:
             return np.array([]), np.array([])
 
@@ -432,8 +444,9 @@ class PlayHand:
         for main_part in main_list:
 
             # 防止main part带上自己的部分，例如 7 7 7不能带7
-            temp_solos: List[np.ndarray] = [i for i in self._solos if i[0] not in np.unique(main_part)]
             temp_pairs: List[np.ndarray] = [i for i in self._pairs if i[0] not in np.unique(main_part)]
+            temp_solos: List[np.ndarray] = [i for i in self._solos if
+                                            i[0] not in np.unique(main_part) and i[0] not in np.unique(temp_pairs)]
 
             take_count: int = math.ceil(main_part.size / 3)
             if len(temp_solos) >= take_count and len(temp_pairs) >= take_count:

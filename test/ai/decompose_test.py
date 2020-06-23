@@ -3,17 +3,6 @@
 from duguai.ai.decompose import *
 
 
-def test_decomposed_value():
-    test_data = [
-        ([5, 5, 6, 6, 6], 5),
-        ([5, 5, 6, 6, 7, 7], 6),
-        ([7, 8, 9, 10, 10, 10, 11, 11, 11], 2)
-    ]
-    for i in test_data:
-        cards, d_value = np.array(i[0]), i[1]
-        print(AbstractDecomposer.decompose_value(cards))
-
-
 def test_card2():
     decomposer = FollowDecomposer()
     combo = Combo()
@@ -94,6 +83,13 @@ def test_trio_with_one():
     combo.cards = [3, 3, 7, 7, 7]
     print(decomposer.get_good_follows(np.array([8, 8, 8, CARD_2, CARD_2]), combo))
     print(decomposer.get_good_follows(np.array([8, 8, 8, CARD_2]), combo))
+    print(decomposer.get_good_follows(np.array([1, 1, 2, 3, 4, 5, 6, 9, 9, 9, 10, 10, 10, 11, 11, 11]), combo))
+
+
+def test_trio():
+    decomposer = PlayDecomposer()
+    print(decomposer.get_good_plays(np.array([4, 4, 4, 5, 6, 6, 7, 7])))
+    print(decomposer.get_good_plays(np.array([1, 1, 2, 3, 4, 5, 6, 9, 9, 9, 10, 10, 10, 11, 11, 11])))
 
 
 def test_long_seq():
