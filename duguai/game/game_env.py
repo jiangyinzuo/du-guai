@@ -108,13 +108,20 @@ class GameEnv:
             ) and self.last_combo.is_valid() and self.last_combo > self.game_env.former_combo
 
     def __init__(self):
+        self.cards: List[np.ndarray] = []
+
+        # 玩家数组
+        self._players: List[GameEnv.AbstractPlayer] = []
+        self.turn: int
+        self.land_lord: int
+        self._last_combo_owner: int
+        self._former_combo: Combo
+
+    def _init(self):
 
         # 卡牌二维数组, 前3个代表玩家0、1、2的初始手牌（各17张）最后一项代表3张地主牌
         self.cards: List[np.ndarray] = np.split(np.asarray([card for card in range(1, 14)] * 4 + [14, 15], dtype=int),
                                                 [17, 34, 51])
-
-        # 玩家数组
-        self.players: List[GameEnv.AbstractPlayer] = []
 
         # 当前轮到第几个玩家
         self.turn: int = 0
@@ -138,13 +145,14 @@ class GameEnv:
         @param p2: 玩家1
         @param p3: 玩家2
         """
-        self.players = [p1, p2, p3]
+        self._players = [p1, p2, p3]
 
     def start(self) -> None:
         """
         开始游戏
         """
-        assert len(self.players) == 3, "开始游戏前先添加玩家"
+        self._init()
+        assert len(self._players) == 3, "开始游戏前先添加玩家"
         self.__call_landlord()
         self.__round_robin()
 
@@ -194,12 +202,12 @@ class GameEnv:
         print('进入叫地主环节')
         while self.land_lord == -1:
             self.shuffle()
-            for player in self.players:
+            for player in self._players:
 
                 if player.call_landlord():
                     self.land_lord = self.turn
                     print(_SPLIT_LINE)
-                    for p in self.players:
+                    for p in self._players:
                         p.notify_landlord(self.turn)
                     print("地主获得了3张牌: {}".format(cards_view(self.cards[3])))
                     self.cards[self.turn] = np.concatenate([self.cards[self.turn], self.cards[3]])
@@ -215,11 +223,11 @@ class GameEnv:
             print(_SPLIT_LINE)
             if self._last_combo_owner == self.turn:
                 print(self.user_info(0) + '出牌')
-                self.players[self.turn].play()
+                self._players[self.turn].play()
             else:
                 print(self.user_info(0) + '跟牌(先前的牌由 玩家%d 打出 %s)'
                       % (self._last_combo_owner, self._former_combo.cards_view))
-                self.players[self.turn].follow()
+                self._players[self.turn].follow()
 
             if len(self.cards[self.turn]) == 0:
                 if self.land_lord == self.turn:
@@ -230,9 +238,9 @@ class GameEnv:
                     print('农民(玩家{}、玩家{})获胜'.format(farmers.pop(), farmers.pop()))
                 return
 
-            if self.players[self.turn].last_combo.is_not_empty():
+            if self._players[self.turn].last_combo.is_not_empty():
                 self._last_combo_owner = self.turn
-                self._former_combo = self.players[self.turn].last_combo
+                self._former_combo = self._players[self.turn].last_combo
 
                 print(self.user_info(0) + '打出了：' + self._former_combo.cards_view)
             else:

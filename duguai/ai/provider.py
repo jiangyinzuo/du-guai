@@ -38,7 +38,7 @@ class AbstractProvider(metaclass=ABCMeta):
         计算玩家身份
         @return: 0: 地主; 1: 地主下家农民; 2: 地主上家农民
         """
-        return (self._player_id - player_id + 3) % 3
+        return (player_id - self._landlord_id + 3) % 3
 
 
 class PlayProvider(AbstractProvider):
@@ -81,7 +81,7 @@ class PlayProvider(AbstractProvider):
         MIN_SOLO = 1
         MAX_SOLO = 41
 
-        ROCKET = 24
+        ROCKET = 34
 
         OTHER_SEQ_OR_PLANE = 6
         FOUR_TAKE_TWO = 7

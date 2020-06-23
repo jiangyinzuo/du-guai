@@ -53,8 +53,7 @@ class AbstractDecomposer(metaclass=ABCMeta):
 
         # 3带1，3带2，飞机
         if trios:
-            d_value = max(d_value, trios * 3 + (trios if solo >= trios else 0))
-            d_value = max(d_value, trios * 3 + (trios * 2 if pairs >= trios else 0))
+            d_value = max(d_value, trios * 5)
         # 4带2
         if len(di[4]):
             d_value = max(d_value, 4 + (2 if solo >= 2 or pairs >= 1 else 0))
@@ -79,7 +78,7 @@ class AbstractDecomposer(metaclass=ABCMeta):
                     reward = -1
                     break
             else:
-                # 3带M加上M的长度（算3或飞机带对子）
+                # 3带M加上M的长度（视为 三/飞机 带对子）
                 combo = Combo()
                 combo.cards = a
                 if combo.main_kind == 3:
@@ -96,6 +95,7 @@ class AbstractDecomposer(metaclass=ABCMeta):
     def _eval_actions(self,
                       func,
                       lt2_state: np.ndarray,
+                      all_actions: bool,
                       no_max_q: bool = False,
                       **kwargs) -> Tuple[np.ndarray, np.ndarray]:
         actions = np.array(
@@ -109,10 +109,14 @@ class AbstractDecomposer(metaclass=ABCMeta):
         q_list: np.ndarray = self._calc_d_values(lt2_state, actions, no_max_q) + len_a
         if len(q_list) == 0:
             return np.array([]), np.array([])
-        max_q = np.max(q_list)
 
-        args_res: np.ndarray = q_list == max_q
-        return actions[args_res], q_list[args_res]
+        # 若需要所有动作及Q值，则直接返回
+        if all_actions:
+            return actions, q_list
+        else:
+            max_q = np.max(q_list)
+            args_res: np.ndarray = q_list == max_q
+            return actions[args_res], q_list[args_res]
 
     def _process_state(self, state: np.ndarray, last_combo: Combo = None):
         self._state = np.array(state)
@@ -134,7 +138,8 @@ class AbstractDecomposer(metaclass=ABCMeta):
         good_actions: np.ndarray = np.array(good_actions)
         return np.array(good_actions[np.array(q_lists) >= max(max_q, np.max(q_lists)) - delta])
 
-    def _get_actions_and_q_lists(self, lt2_state: np.ndarray) -> Tuple[List[np.ndarray], List[int]]:
+    def _get_good_actions_and_q_lists(self, lt2_state: np.ndarray, all_actions: bool) \
+            -> Tuple[List[np.ndarray], List[int]]:
         """获取一个lt2_state下所有的actions及其对应的q_lists"""
 
         good_actions: list = []
@@ -145,6 +150,7 @@ class AbstractDecomposer(metaclass=ABCMeta):
         for kind in range(1, max_count + 1):
             good_action, q_list = self._eval_actions(_get_single_actions,
                                                      lt2_state,
+                                                     all_actions,
                                                      length=kind)
             good_actions.extend(good_action)
             q_lists.extend(q_list)
@@ -155,6 +161,7 @@ class AbstractDecomposer(metaclass=ABCMeta):
             for length in range(min_len, len(card_list) + 1):
                 good_action, q_list = self._eval_actions(_get_seq_actions,
                                                          lt2_state,
+                                                         all_actions,
                                                          card_list=card_list,
                                                          kind=k,
                                                          length=length)
@@ -217,7 +224,8 @@ class FollowDecomposer(AbstractDecomposer):
         """加入单只王"""
 
         if self._ghosts.size:
-            if self._last_combo.main_kind == 1 and self._last_combo.value < self._ghosts[-1]:
+            if self._last_combo.is_solo() \
+                    and self._last_combo.main_kind == 1 and self._last_combo.value < self._ghosts[-1]:
                 self._main_lists[2].append(self._ghosts[-1:])
             elif self._last_combo.take_kind == 1:
                 self._take_lists[2].append(self._ghosts[-1:])
@@ -229,7 +237,7 @@ class FollowDecomposer(AbstractDecomposer):
                 self._main_lists[0].append(np.array([CARD_2] * self._last_combo.main_kind))
 
             if self._last_combo.take_kind <= self.card2_count:
-                self._take_lists[2].append(np.array([CARD_2]))
+                self._take_lists[2].append(np.array([CARD_2] * self._last_combo.take_kind))
 
     def _add_takes(self, main_q: int, main_seq: np.ndarray, take_count: int) -> Tuple[int, np.ndarray]:
         tk = 0
@@ -267,12 +275,13 @@ class FollowDecomposer(AbstractDecomposer):
     def _delta_q(cls, _max_q, _q):
         return (_max_q - _q) if _max_q - _q < 1000 else (_max_q - MAX_Q - _q)
 
-    def _add_to_main_lists_and_find_max(self, combo: Combo, a: np.ndarray, q: int, max_q: int):
+    def _add_to_main_lists_and_find_max(self, a: np.ndarray, q: int, max_q: int):
 
         main_kind = self._last_combo.main_kind
         seq_len = self._last_combo.seq_len
         value = self._last_combo.value
 
+        combo = Combo()
         combo.cards = a
         # 筛选符合规则的主牌
         if combo.value > value and combo.main_kind == main_kind and combo.seq_len == seq_len:
@@ -290,7 +299,6 @@ class FollowDecomposer(AbstractDecomposer):
 
     def _thieve_valid_actions(self) -> Tuple[int, List[np.ndarray]]:
 
-        combo = Combo()
         take_kind = self._last_combo.take_kind
 
         self._thieve_valid_ghost()
@@ -300,7 +308,7 @@ class FollowDecomposer(AbstractDecomposer):
 
         for lt2_state in self._lt2_states:
             if lt2_state.size > 0:
-                actions, q_lists = super(FollowDecomposer, self)._get_actions_and_q_lists(lt2_state)
+                actions, q_lists = super(FollowDecomposer, self)._get_good_actions_and_q_lists(lt2_state, True)
                 max_q: int = max(q_lists)
                 for a, q in zip(actions, q_lists):
 
@@ -308,7 +316,7 @@ class FollowDecomposer(AbstractDecomposer):
                     if len(a) == take_kind or len(a) == 2 and take_kind == 1:
                         self._take_lists[self._delta_q(max_q, q)].append(a[:take_kind])
 
-                    self._add_to_main_lists_and_find_max(combo, a, q, max_q)
+                    self._add_to_main_lists_and_find_max(a, q, max_q)
 
         if not self._main_lists:
             return 0, []
@@ -373,9 +381,6 @@ class PlayHand:
         self._other_seq: List[np.ndarray] = []
         self._has_rocket: bool = False
 
-        self._solo_takes: int = 0
-        self._pair_takes: int = 0
-
         self._min_solo: int = np.min(cards)
         self._max_solo: int = np.max(cards)
 
@@ -410,13 +415,13 @@ class PlayHand:
             else:
                 self.other_seq.append(a)
 
-    def _choose_takes(self, kind: int, main_part: np.ndarray, take_count: int):
-        if kind == 1:
-            main_part = np.concatenate([main_part] + self._solos[:take_count])
-            self._solo_takes += take_count
-        else:
-            main_part = np.concatenate([main_part] + self._pairs[:take_count])
-            self._pair_takes += take_count
+    @staticmethod
+    def _choose_takes(take_list: List[np.ndarray], main_part: np.ndarray, take_count: int, split_pair: bool = False):
+
+        main_part = np.concatenate([main_part] + take_list[:take_count])
+        if split_pair:
+            main_part = np.concatenate([main_part, take_list[take_count][:1]])
+
         return main_part
 
     def merge_main_takes(self, main_list: List[np.ndarray], extended_target: List[np.ndarray]):
@@ -425,20 +430,29 @@ class PlayHand:
         """
         main_take_list: List[np.ndarray] = []
         for main_part in main_list:
+
+            # 防止main part带上自己的部分，例如 7 7 7不能带7
+            temp_solos: List[np.ndarray] = [i for i in self._solos if i[0] not in np.unique(main_part)]
+            temp_pairs: List[np.ndarray] = [i for i in self._pairs if i[0] not in np.unique(main_part)]
+
             take_count: int = math.ceil(main_part.size / 3)
-            if len(self._solos) >= take_count and len(self._pairs) >= take_count:
-                if np.mean(self._solos) > np.mean(self._pairs):
-                    main_take_list.append(self._choose_takes(1, main_part, take_count))
+            if len(temp_solos) >= take_count and len(temp_pairs) >= take_count:
+                if np.mean(temp_solos) > np.mean(temp_pairs):
+                    main_take_list.append(self._choose_takes(temp_solos, main_part, take_count))
                 else:
-                    main_take_list.append(self._choose_takes(2, main_part, take_count))
-            elif len(self._pairs) >= take_count:
-                main_take_list.append(self._choose_takes(2, main_part, take_count))
-            elif len(self._solos) >= take_count:
-                main_take_list.append(self._choose_takes(1, main_part, take_count))
-            elif len(self._solos) + 2 * len(self._pairs) >= take_count:
-                len_solos = len(self._solos)
-                main_part = self._choose_takes(1, main_part, len_solos)
-                main_take_list.append(self._choose_takes(2, main_part, take_count - len_solos))
+                    main_take_list.append(self._choose_takes(temp_pairs, main_part, take_count))
+            elif len(temp_pairs) >= take_count:
+                main_take_list.append(self._choose_takes(temp_pairs, main_part, take_count))
+            elif len(temp_solos) >= take_count:
+                main_take_list.append(self._choose_takes(temp_solos, main_part, take_count))
+            elif len(temp_solos) + 2 * len(temp_pairs) >= take_count:
+                len_solos = len(temp_solos)
+                main_part = self._choose_takes(temp_solos, main_part, len_solos)
+                main_take_list.append(
+                    self._choose_takes(
+                        temp_pairs, main_part, (take_count - len_solos) // 2, (take_count - len_solos) % 2 == 1
+                    )
+                )
             else:
                 main_take_list.append(main_part)
         extended_target.extend(main_take_list)
@@ -526,7 +540,7 @@ class PlayDecomposer(AbstractDecomposer):
         """
         获取小于2的牌中当前状态下较好的拆牌
         """
-        actions, q_lists = super(PlayDecomposer, self)._get_actions_and_q_lists(lt2_state)
+        actions, q_lists = super(PlayDecomposer, self)._get_good_actions_and_q_lists(lt2_state, False)
 
         return self._max_q_actions(actions, q_lists)
 

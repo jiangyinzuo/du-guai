@@ -14,7 +14,7 @@ from card import CARD_G1, CARD_G0
 PA = PlayProvider.ActionProvider
 
 
-def _choose_play(play_hand, play_kind, play_strength):
+def _choose_play(play_hand, play_kind, play_strength) -> np.ndarray:
     if play_kind == 1:
         action_list = play_hand.solos
     elif play_kind == 2:
@@ -46,9 +46,9 @@ def execute_play(play_hand: PlayHand, action: int) -> np.ndarray:
     @return: 数组，表示要出的牌
     """
     if action == PA.MIN_SOLO:
-        return np.array(play_hand.min_solo)
+        return np.array([play_hand.min_solo])
     elif action == PA.MAX_SOLO:
-        return np.array(play_hand.max_solo)
+        return np.array([play_hand.max_solo])
     elif action == PA.ROCKET:
         return np.array([CARD_G0, CARD_G1])
     elif action == PA.OTHER_SEQ_OR_PLANE:

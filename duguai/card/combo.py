@@ -51,11 +51,11 @@ def _three(di, value) -> int:
 
             # 大翼 或3带2
             if len(di[2]) == len(di[3]):
-                return 20000 + len(di[3]) * 1000 + 300 + value
+                return 200000 + len(di[3]) * 1000 + 300 + value
 
         # 小翼 或3带1
         if len(di[1]) + len(di[2]) * 2 == len(di[3]):
-            return 10000 + len(di[3]) * 1000 + 300 + value
+            return 100000 + len(di[3]) * 1000 + 300 + value
     return INVALID_BIT
 
 
@@ -67,10 +67,10 @@ def _four(di, value) -> int:
 
         # 4带2单
         if len(di[1]) + len(di[2]) * 2 == 2:
-            return 11400 + value
+            return 101400 + value
         # 4带2双
         elif len(di[2]) == 2 and not di[1]:
-            return 21400 + value
+            return 201400 + value
 
     return INVALID_BIT
 
@@ -82,21 +82,23 @@ class Combo:
     """
     卡牌组合类
 
-    bit_info是一个取值范围在[-1, 30000)上的整数。
+    bit_info是一个取值范围在[-1, 300000)上的整数。
     卡牌组合非法时bit_info = -1，王炸 bit_info = 0。
+    记bit_info = a5 a4 a3 a2 a1 a0
     其它情况规则如下：
-    bit_info % 100 = 组合用于比较大小的值。组合类型为N带M时，取N中的最大值。其它时候取所有牌最大值。
-    bit_info // 100 % 10 = max(牌i的数量)。例如`AAA44`时取3，`667788`时取2
-    bit_info // 1000 % 10 = count(max(牌i的数量))。例如`667788`取3，`333444JK`取2
-    bit_info // 10000 = N带M中的M。例如`66`取0，`333J`取1。
+    a1a0: bit_info % 100 = 组合用于比较大小的值。组合类型为N带M时，取N中的最大值。其它时候取所有牌最大值。
+    a2  : bit_info // 100 % 10 = max(牌i的数量)。例如`AAA44`时取3，`667788`时取2
+    a4a3: bit_info // 1000 % 100 = count(max(牌i的数量))。例如`667788`取3，`333444JK`取2
+    a5:   bit_info // 100000 = N带M中的M。例如`66`取0，`333J`取1。
     """
 
     def __calc_bit_info(self) -> int:
 
         self._cards.sort()
 
-        # N带0。包括单，对，三带0，炸弹
-        if len(np.unique(self._cards)) == 1:
+        # 单，对，三带0，炸弹
+        seq_len = len(np.unique(self._cards))
+        if seq_len == 1:
             return 1000 + 100 * len(self._cards) + self._cards[0]
 
         # 王炸
@@ -140,74 +142,46 @@ class Combo:
 
     def is_solo(self) -> bool:
         """
-        是否为单
+        是否为单 a4 a3 a2 = 011
         @see _bit_info
         """
-        return self._bit_info // 100 % 100 == 11
-
-    def has_solo(self) -> bool:
-        """
-        是否需要单
-        """
-        return self.is_solo() or self._bit_info // 10000 == 1
+        return self._bit_info // 100 % 1000 == 11
 
     def is_pair(self) -> bool:
         """
-        是否为对子
+        是否为对子 a4 a3 a2 = 012
         @see _bit_info
         """
-        return self._bit_info // 100 % 100 == 12
+        return self._bit_info // 100 % 1000 == 12
 
     @property
     def take_kind(self) -> int:
         """
-        带牌的种类
+        带牌的种类 a5
         """
-        return self._bit_info // 10000
+        return self._bit_info // 100000
 
     def is_trio(self) -> bool:
         """
-        是否为三
+        是否为三 a4 a3 a2 = 013
         """
-        return self._bit_info // 100 % 100 == 13
+        return self._bit_info // 100 % 1000 == 13
 
     def is_single(self) -> bool:
-        """是否为单牌"""
-        return self._bit_info // 100 % 100 // 10 == 1
-
-    def is_quartet(self) -> bool:
-        """
-        是否为四带2
-        """
-        return self._bit_info // 100 % 100 == 14 and self._bit_info // 10000 > 0
-
-    def has_pair(self) -> bool:
-        """
-        是否需要对
-        """
-        return self.is_pair() or self._bit_info // 10000 == 2
-
-    def is_seq(self) -> bool:
-        """
-        是否为一种序列（顺子/连对/飞机/炸弹）
-        """
-        return self.seq_len >= 2
-
-    def has_no_take(self) -> bool:
-        """是否不带单/对"""
-        return self._bit_info // 10000 == 0
+        """是否为单牌 a4 a3 a2 = 01"""
+        return self._bit_info // 1000 % 100 == 1
 
     @property
     def seq_len(self) -> int:
         """
-        连续的长度
+        连续的长度 a4 a3
         """
-        return self._bit_info // 1000 % 10
+        return self._bit_info // 1000 % 100
 
     @property
     def main_kind(self) -> int:
         """
-        单种牌或序列类型
+        单种牌或序列类型 a2
         """
         return self._bit_info // 100 % 10
 
@@ -249,11 +223,11 @@ class Combo:
         return self._cards
 
     @cards.setter
-    def cards(self, v: Union[List[int], np.ndarray]):
-        if len(v) == 0:
+    def cards(self, value: Union[List[int], np.ndarray]):
+        if len(value) == 0:
             self.pass_()
         else:
-            self._cards: np.ndarray = np.array(v)
+            self._cards: np.ndarray = np.array(value)
             self._cards.sort()
             self._cards_view = cards_view(self._cards)
             self._bit_info = self.__calc_bit_info()
@@ -266,10 +240,12 @@ class Combo:
         """
         return self._bit_info // 100 == 14
 
-    def _bit_value_lt(self, other: Combo) -> bool:
+    def _bit_value_gt(self, other: Combo) -> bool:
+        """self的价值是否大于other"""
         return self._bit_info % 100 > other._bit_info % 100
 
     def _bit_type_eq(self, other: Combo) -> bool:
+        """两种Combo类型是否相等"""
         return self._bit_info // 100 == other._bit_info // 100
 
     def __gt__(self, other: Combo):
@@ -278,9 +254,9 @@ class Combo:
         if other._bit_info == ROCKET_BIT:
             return False
         if self.is_bomb():
-            return not other.is_bomb() or self._bit_value_lt(other)
+            return not other.is_bomb() or self._bit_value_gt(other)
 
-        return self._bit_type_eq(other) and self._bit_value_lt(other)
+        return self._bit_type_eq(other) and self._bit_value_gt(other)
 
     def __repr__(self):
         return 'Combo: ' + self._cards_view

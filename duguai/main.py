@@ -5,7 +5,7 @@
 import logging
 import traceback
 
-from duguai import mode
+from duguai import mode, test
 from duguai.game.game_env import GameEnv
 from game.human import Human
 from game.robot import Robot
@@ -35,13 +35,21 @@ def log_locals(err: Exception):
 
 if __name__ == '__main__':
     game_env = GameEnv()
-    game_env.add_players(Human(game_env, 0),
-                         Robot(game_env, 1),
-                         Robot(game_env, 2))
-
     try:
-        game_env.start()
+        if test == 'on':
+            for i in range(121):
+                game_env.add_players(Robot(game_env, 0),
+                                     Robot(game_env, 1),
+                                     Robot(game_env, 2))
+                game_env.start()
+
+        else:
+            game_env.add_players(Human(game_env, 0),
+                                 Robot(game_env, 1),
+                                 Robot(game_env, 2))
+            game_env.start()
     except Exception as e:
         logging.exception(e)
         if mode == 'debug':
             log_locals(e)
+        exit(0)

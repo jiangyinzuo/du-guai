@@ -7,10 +7,11 @@ def test_decomposed_value():
     test_data = [
         ([5, 5, 6, 6, 6], 5),
         ([5, 5, 6, 6, 7, 7], 6),
+        ([7, 8, 9, 10, 10, 10, 11, 11, 11], 2)
     ]
     for i in test_data:
         cards, d_value = np.array(i[0]), i[1]
-        assert AbstractDecomposer.decompose_value(cards) == d_value
+        print(AbstractDecomposer.decompose_value(cards))
 
 
 def test_card2():
@@ -48,15 +49,20 @@ def test_takes():
     play_decomposer = PlayDecomposer()
     follow_decomposer = FollowDecomposer()
     test_cards = [
-        ([1, 1, 4, 4, 4, 5, 5, 5, 6], 3, [6, 6, 3, 3, 3, 4, 4, 4], 2, 2)
+        ([1, 1, 4, 4, 4, 5, 5, 5, 6], [6, 6, 3, 3, 3, 4, 4, 4])
     ]
+
+    print(play_decomposer.get_good_plays(np.array([2, 5, 6, 7, 8, 9, 9, 10, 10, 10, 11, 12])))
 
     combo = Combo()
     for i in test_cards:
-        combo.cards = i[2]
+        combo.cards = i[1]
         cards = np.array(i[0])
         print(play_decomposer.get_good_plays(cards))
         print(follow_decomposer.get_good_follows(cards, combo))
+
+    print(play_decomposer.get_good_plays(np.array([5, 7, 8, 9, 10, 10, 10, 11, 11, 11, 12, 12])))
+    print(play_decomposer.get_good_plays(np.array([3, 3, 5, 7, 8, 9, 10, 10, 10, 11, 11, 11, 12, 12])))
 
 
 def test_good_single():
@@ -85,6 +91,17 @@ def test_trio_with_one():
     print(decomposer.get_good_follows(np.array([8, 8, 9, 10]), combo))
     print(decomposer.get_good_follows(np.array([8, 8, 8, 8, 9, 10]), combo))
 
+    combo.cards = [3, 3, 7, 7, 7]
+    print(decomposer.get_good_follows(np.array([8, 8, 8, CARD_2, CARD_2]), combo))
+    print(decomposer.get_good_follows(np.array([8, 8, 8, CARD_2]), combo))
+
+
+def test_long_seq():
+    combo = Combo()
+    decomposer = FollowDecomposer()
+    combo.cards_view = 'Q'
+    print(decomposer.get_good_follows(np.array([1, 1, 2, 3, 4, 5, 5, 6, 7, 7, 8, 8, 8, 9, 10, 11, 12]), combo))
+
 
 def test_four_takes():
     decomposer = PlayDecomposer()
@@ -102,3 +119,4 @@ def test_seq():
 
     combo.cards = [4, 5, 6, 7, 8]
     print(decomposer.get_good_follows(np.array([5, 5, 6, 7, 8, 9]), combo))
+    print(decomposer.get_good_follows(np.array([CARD_G1, CARD_G0]), combo))

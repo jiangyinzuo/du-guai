@@ -3,6 +3,8 @@
 AI进行斗地主操作的类，多种算法在此集成
 @author 江胤佐
 """
+from copy import deepcopy
+
 from ai import process
 from ai.call_landlord import get_svc, z_score
 from ai.executor import execute_play, execute_follow
@@ -53,7 +55,7 @@ class Robot(GameEnv.AbstractPlayer):
             hand_p=self.game_env.hand_p,
             hand_n=self.game_env.hand_n,
             cards=self.hand,
-            last_combo=self.game_env.former_combo)
+            last_combo=deepcopy(self.game_env.former_combo))
 
         action: int = get_follow_action(state, action_list)
         self.last_combo.cards = execute_follow(action, bombs, good_actions, max_actions)
