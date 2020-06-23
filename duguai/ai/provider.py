@@ -9,137 +9,8 @@ from typing import List, Tuple
 
 import numpy as np
 
-from ai.decompose import PlayDecomposer, FollowDecomposer
-from card import CARD_G1, CARD_6
+from ai.decompose import PlayDecomposer, FollowDecomposer, PlayHand
 from card.combo import Combo
-
-
-class Hand:
-    """
-    对手牌进行进一步分类的类
-    """
-
-    def __init__(self, cards: np.ndarray, d_actions, last_combo: Combo):
-        """
-        初始化Hand类
-        @param cards: 玩家的初始手牌
-        @param d_actions: 经过初步分解后的行动。（初步分解在decompose.py模块下）
-        @param last_combo: 上一个出牌的Combo
-        @see decompose.py
-        """
-        self._cards: np.ndarray = cards
-        self._solo: List[np.ndarray] = []
-        self._pair: List[np.ndarray] = []
-        self._trio: List[np.ndarray] = []
-        self._bomb: List[np.ndarray] = []
-        self._plane: List[np.ndarray] = []
-        self._seq_solo5: List[np.ndarray] = []
-        self._other_seq: List[np.ndarray] = []
-        self._has_rocket: bool = False
-        self._min_solo = None
-        self._max_solo = None
-        self._last_combo = last_combo
-
-        self.__part_action(d_actions)
-        self.find_valid_plane()
-
-    def __part_action(self, d_actions: List[np.ndarray]) -> None:
-        """对d_action进行初步分类"""
-
-        for a in d_actions:
-
-            # 含王炸
-            if len(a) == 2 and a[-1] == CARD_G1:
-                self._has_rocket = True
-
-            # 分类单牌
-            if 1 <= len(a) <= 4:
-                (self.solo, self.pair, self.trio, self.bomb)[len(a) - 1].append(a)
-
-            # 分类长度为5的单顺
-            elif len(a) == 5 and a[0] == a[1] - 1 == a[3] - 3 == a[4] - 4:
-                self.seq_solo5.append(a)
-
-            # 分类飞机
-            elif len(a) % 3 == 0 and a[0] == a[2] and a[0] != a[3]:
-                self.plane.append(a)
-
-            # 分类其它顺子
-            else:
-                self.other_seq.append(a)
-
-    def find_valid_other_seq(self):
-        """
-        找到合法的顺子/连对
-        """
-
-    def find_valid_plane(self):
-        """
-        找到合法的飞机
-        """
-
-    @property
-    def cards(self) -> np.ndarray:
-        """玩家原始的卡牌"""
-        return self._cards
-
-    @property
-    def solo(self) -> List[np.ndarray]:
-        """单"""
-        return self._solo
-
-    @property
-    def pair(self) -> List[np.ndarray]:
-        """对"""
-        return self._pair
-
-    @property
-    def trio(self) -> List[np.ndarray]:
-        """三"""
-        return self._trio
-
-    @property
-    def bomb(self) -> List[np.ndarray]:
-        """炸弹"""
-        return self._bomb
-
-    @property
-    def plane(self) -> List[np.ndarray]:
-        """飞机"""
-        return self._plane
-
-    @property
-    def other_seq(self) -> List[np.ndarray]:
-        """其它各种序列"""
-        return self._other_seq
-
-    @property
-    def seq_solo5(self) -> List[np.ndarray]:
-        """长度为5的单顺"""
-        return self._seq_solo5
-
-    @property
-    def has_rocket(self) -> bool:
-        """是否有王炸"""
-        return self._has_rocket
-
-    @property
-    def min_solo(self) -> int:
-        """强拆的最小单牌"""
-        return self._min_solo
-
-    @property
-    def max_solo(self) -> int:
-        """强拆的最大单牌"""
-        return self._max_solo
-
-    @max_solo.setter
-    def max_solo(self, value):
-        self._max_solo = value
-
-    @min_solo.setter
-    def min_solo(self, value):
-        self._min_solo = value
 
 
 class AbstractProvider(metaclass=ABCMeta):
@@ -171,140 +42,106 @@ class AbstractProvider(metaclass=ABCMeta):
 
 
 class PlayProvider(AbstractProvider):
+    """
+    为出牌提供拆好的手牌、状态与动作
+    """
+
+    def __init__(self, player_id: int):
+        super().__init__(player_id)
+        self._play_decomposer: PlayDecomposer = PlayDecomposer()
+        self._state_provider: PlayProvider.StateProvider = PlayProvider.StateProvider(self)
+        self._action_provider: PlayProvider.ActionProvider = PlayProvider.ActionProvider(self)
+
+    def provide(self, card: np.ndarray, hand_p: int, hand_n: int) -> Tuple[PlayHand, np.ndarray, List[int]]:
+        """
+        提供拆好的手牌、状态、动作
+        @param card: 玩家手牌
+        @param hand_p: 上家手牌数量
+        @param hand_n: 下家手牌数量
+        @return: play_hand, state_vector, action_list
+        """
+        play_hand: PlayHand = self._play_decomposer.get_good_plays(card)
+        state_vector: np.ndarray = self._state_provider.provide(play_hand, hand_p, hand_n)
+        action_list: List[int] = self._action_provider.provide(play_hand, hand_p, hand_n)
+        return play_hand, state_vector, action_list
+
     class ActionProvider:
         """
         AI出牌时，给AI提供动作的类。
         动作被化简为以下几个：
-        x1：出单，x取【0-5】, 表示出 强行最小、最小、中、偏大、最大、强行最大的单
-        x2：出对，x取【1-4】, 表示出 最小、中、偏大、最大的对
-        xy3：出三，x取【0-2】, 表示出最小、中间、最大的三；y表示带单还是带对
-        xy4：出一个小的炸弹, x取【0-2】，表示出小炸弹或大炸弹或王炸, y表示带单还是带双还是不带
-        x5：出长度为5的顺子，x取【0-1】，表示出较小的或较大的顺子
-        6：出其它连对顺子
-        7：出飞机
-        8：强行拆牌出最大的
+        x1：出单，x取【0-4】, 表示出 强行最小、小、中、大、强行最大的单
+        x2：出对，x取【1-3】, 表示出 小、中、大的对
+        x3：出三，x取【1-2】, 表示出最小、较大的三
+        x4：出炸弹, x取【1-3】，表示出小炸弹或大炸弹或王炸
+        x5：出长度为5的顺子，x取【1-2】，表示出较小的或较大的顺子
+        6：出其它连对顺子飞机
+        7: 出4带2
         """
 
         MIN_SOLO = 1
-        MAX_SOLO = 51
-        PAIRS = [12, 22, 32, 42]
+        MAX_SOLO = 41
 
-        LITTLE_BOMB = 4
-        BIG_BOMB = 104
-        ROCKET = 204
-        FOUR_TAKE_ONE = 14
-        FOUR_TAKE_TWO = 24
+        ROCKET = 24
 
-        OTHER_SEQ = 6
-        PLANE = 7
-        FORCE_MAX = 8
+        OTHER_SEQ_OR_PLANE = 6
+        FOUR_TAKE_TWO = 7
 
-        def __init__(self, outer: AbstractProvider):
-            self._outer: AbstractProvider = outer
-            self._play_decomposer: PlayDecomposer = PlayDecomposer()
+        def __init__(self, outer: PlayProvider):
+            self._play_hand: PlayHand
+            self._action_list: List[int]
+            self._outer: PlayProvider = outer
 
-            # 若玩家为1号农民，当2号农民只剩一张牌时，仅尝试拆一次单牌。
-            self._split_min_solo: bool = True
-            self.action_list: List[int] = []
-
-        def _split_solo(self, cards: np.ndarray, hand: Hand):
-            self._split_min_solo = False
-            min_card = np.min(cards)
-            if min_card < CARD_6:
-                hand.min_solo = min_card
-            else:
-                pair_card, trio_card = -1, -1
-                if len(hand.pair):
-                    pair_card: int = hand.pair[0][0]
-                if len(hand.trio):
-                    trio_card: int = hand.trio[0][0]
-                min_card: int = min(pair_card, trio_card)
-                if min_card != -1:
-                    hand.min_solo = min_card
-
-        @classmethod
-        def _add_solo_actions(cls, hand, action_list):
-            if hand.min_solo:
-                action_list.append(cls.MIN_SOLO)
-            if len(hand.solo):
-                action_list.extend([11, 21, 31, 41])
-            if hand.max_solo:
-                action_list.append(cls.MAX_SOLO)
-
-        @classmethod
-        def _add_bomb_actions(cls, hand, action_list):
-            if hand.has_rocket:
-                action_list.append(cls.ROCKET)
-            if len(hand.bomb):
-                if len(hand.bomb) == 1:
-                    action_list.append(cls.LITTLE_BOMB)
+        def _init(self, play_hand: PlayHand, hand_p: int, hand_n: int):
+            self._play_hand: PlayHand = play_hand
+            self_identity = self._outer.calc_identity(self._outer._player_id)
+            if self_identity == self._outer._FARMER_1:
+                if hand_p == 1:
+                    self._action_list = [self.MAX_SOLO]
+                elif hand_n == 1:
+                    self._action_list = [self.MIN_SOLO]
                 else:
-                    action_list.extend([cls.LITTLE_BOMB, cls.BIG_BOMB])
-                if len(hand.solo) >= 2 or len(hand.pair):
-                    action_list.append(cls.FOUR_TAKE_ONE)
-                if len(hand.pair) >= 2:
-                    action_list.append(cls.FOUR_TAKE_TWO)
+                    self._action_list = []
+            elif self_identity == self._outer._FARMER_2:
+                self._action_list = [self.MAX_SOLO] if hand_n == 1 else []
+            else:
+                self._action_list: List[int] = []
 
-        @staticmethod
-        def _has_take(hand, take_kind: int, take_num: int) -> bool:
-            if take_kind == 0:
-                return True
-            if take_kind == 1:
-                return len(hand.solo) + len(hand.pair) * 2 >= take_num
-            if take_kind == 2:
-                return len(hand.pair) >= take_num
-            raise ValueError('非法的值')
+        def _add_actions(self, actions: List[np.ndarray], max_a: int, kind: int) -> None:
+            if actions:
+                for base in range(1, max_a + 1):
+                    if len(actions) >= base:
+                        self._action_list.append(10 * base + kind)
+                    else:
+                        return
 
-        def _add_actions(self, hand: Hand):
-            action_list = []
-            if hand.solo:
-                self._add_solo_actions(hand, action_list)
-            if hand.pair:
-                action_list.extend(self.PAIRS)
-            if hand.trio:
-                action_list.extend([3, 103, 103])
-                if hand.solo:
-                    action_list.extend([13, 113, 123])
-                if hand.pair:
-                    action_list.extend([23, 123, 223])
-            if hand.seq_solo5:
-                action_list.extend([5, 15])
-            self._add_bomb_actions(hand, action_list)
-
-            # 找到合法的序列并加入到action_list中
-            hand.find_valid_other_seq()
-            hand.find_valid_plane()
-            return action_list
-
-        def provide_play(self, cards: np.ndarray, hand_p: int, hand_n: int) -> \
-                Tuple[Hand, List[int]]:
+        def provide(self, play_hand: PlayHand, hand_p: int, hand_n: int) -> List[int]:
             """
             提供出牌时候的actions
-            @param cards: 玩家当前的手牌
-            @param hand_p: 上一个玩家的手牌数
-            @param hand_n: 下一个玩家的手牌数
+            @param play_hand: decompose得到的结果
+            @param hand_p: 上家手牌数量
+            @param hand_n: 下家手牌数量
             """
-            self.action_list: List[int] = []
-            d_actions = self._play_decomposer.get_good_plays(cards)
-            hand: Hand = Hand(cards, d_actions)
+            self._init(play_hand, hand_p, hand_n)
 
-            # 一农民剩2张，地主怕出对，又没有合适的单牌，故拆出一张单牌
-            if self._outer.identity == AbstractProvider._LAND_LORD:
-                min_hand = min(hand_p, hand_n)
-                if min_hand == 2 and len(hand.solo) == 0 and len(hand.pair):
-                    hand._min_solo = hand.pair[0][0]
-            elif hand_n == 1 and hand_p == 1:
-                hand.max_solo = np.max(cards)
-            # 一号农民拆单牌
-            elif self._outer.identity == AbstractProvider._FARMER_1 and hand_n == 1 and self._split_min_solo:
-                self._split_solo(cards, hand)
+            self._add_actions(play_hand.solos, 3, 1)
+            self._add_actions(play_hand.pairs, 3, 2)
+            self._add_actions(play_hand.trios, 2, 3)
+            self._add_actions(play_hand.bombs, 2, 4)
+            self._add_actions(play_hand.seq_solo5, 2, 5)
 
-            return hand, self._add_actions(hand)
+            if play_hand.has_rocket:
+                self._action_list.append(self.ROCKET)
+            if play_hand.planes or play_hand.other_seq:
+                self._action_list.append(self.OTHER_SEQ_OR_PLANE)
+            if play_hand.bombs_take:
+                self._action_list.append(self.FOUR_TAKE_TWO)
+
+            return self._action_list
 
     class StateProvider:
         """
         AI出牌或跟牌时，给AI提供状态的类
-        状态是一个长度为13的特征向量。特征的含义以及取值范围如下：
+        状态是一个长度为12的特征向量。特征的含义以及取值范围如下：
         （备注：// 表示整除）
 
         状态说明               属性名                 取值范围（均为整数）
@@ -313,14 +150,12 @@ class PlayProvider(AbstractProvider):
         f1_max(单张)          solo_max              [0, 3]
         f2_min(对子)          pair_min              [0, 2]
         f2_max(对子)          pair_max              [0, 2]
-        f2_min(三)            trio_min              [0, 2]
-        f2_max(三)            trio_max              [0, 2]
+        三的数量(大于2记作2,含飞机) trios               [0, 2]
         最大单顺（长为5） // 5   seq_solo_5             [0, 2]
         存在其它牌型(不含4带2)   other_seq_count       [0, 1]
         炸弹数量（大于2记作2）    bomb_count            [0, 2]
         是否有王炸              rocket                [0, 1]
         玩家位置                player               [0, 2]
-        上一个牌是谁打的         last_combo_owner      [0, 2]
         上家手牌数-1            hand_p(大于5都记作5)    [0, 5]
         下家手牌数-1            hand_n(大于5都记作5)    [0, 5]
         ------------------------------------------------------------
@@ -329,9 +164,9 @@ class PlayProvider(AbstractProvider):
         f1_max(x) = switch max(x):       [1, 4] -> 0; [5, 8] -> 1; [9,  12] -> 2; [13, 15] -> 3
         f2_min(x) = switch mean(x[:2]):  [1, 5] -> 0; [6,10] -> 1; [11, 13] -> 2
         f2_max(x) = switch max(x):       [1, 5] -> 0; [6,10] -> 1; [11, 13] -> 2
-        总共有 (4+3+2+1)*(3+2+1)^2*3*2*3*2*3*3*6*6 = 4199040 种状态
+        总共有 (4+3+2+1)*(3+2+1)*3^2*2*3*2*3*6*6 = 699840 种状态
         """
-        STATE_LEN = 14
+        STATE_LEN = 12
 
         @staticmethod
         def __value_to_f1(value):
@@ -369,30 +204,30 @@ class PlayProvider(AbstractProvider):
         def __init__(self, outer: AbstractProvider):
             self._outer = outer
 
-        def provide(self, hand: Hand, hand_p: int, hand_n: int, last_combo_owner: int) -> np.ndarray:
+        def provide(self, hand: PlayHand, hand_p: int, hand_n: int) -> np.ndarray:
             """
             为AI提供状态
             @param hand: 玩家的手牌
-            @param last_combo_owner: 上一个手牌是谁打的
             @param hand_p: 上一个玩家的手牌数量
             @param hand_n: 下一个玩家的手牌数量
             @return: 长度为 STATE_LEN 的特征向量
             """
             state_vector = np.zeros(PlayProvider.StateProvider.STATE_LEN, dtype=int)
-            if len(hand.solo):
-                state_vector[0:2] = self._f_min(hand.solo), self._f_max(hand.solo)
-            if len(hand.pair):
-                state_vector[2:4] = self._f_min(hand.pair, 2), self._f_max(hand.pair, 2)
-            if len(hand.trio):
-                state_vector[4:6] = self._f_min(hand.pair, 2), self._f_max(hand.pair, 2)
-            if len(hand.seq_solo5):
-                state_vector[6] = np.max(hand.seq_solo5)
-            if len(hand.other_seq) > 0 or len(hand.plane) > 0:
-                state_vector[7] = 1
-            bomb_count = 2 if len(hand.bomb) > 2 else len(hand.bomb)
-            state_vector[8] = bomb_count
-            state_vector[9] = hand.has_rocket
-            state_vector[10:14] = self._outer.identity, last_combo_owner, hand_p, hand_n
+            if len(hand.solos):
+                state_vector[0:2] = self._f_min(hand.solos), self._f_max(hand.solos)
+            if len(hand.pairs):
+                state_vector[2:4] = self._f_min(hand.pairs, 2), self._f_max(hand.pairs, 2)
+
+            trios_count = len(hand.trios) + len(hand.planes) * 2
+            state_vector[4] = trios_count if trios_count <= 2 else 2
+            if hand.seq_solo5:
+                state_vector[5] = np.max(hand.seq_solo5)
+
+            state_vector[6] = 1 if hand.other_seq or hand.planes else 0
+            state_vector[7] = 2 if len(hand.bombs) > 2 else len(hand.bombs)
+
+            state_vector[8] = int(hand.has_rocket)
+            state_vector[9:12] = self._outer.calc_identity(self._outer._player_id), hand_p - 1, hand_n - 1
             return state_vector
 
 
@@ -439,7 +274,8 @@ class FollowProvider(AbstractProvider):
                 last_combo_owner_id: int,
                 hand_p,
                 hand_n,
-                cards: np.ndarray, last_combo: Combo) \
+                cards: np.ndarray,
+                last_combo: Combo) \
             -> Tuple[List[int], List[np.ndarray], List[np.ndarray], np.ndarray, List[int]]:
         """
         提供状态、动作向量及拆牌结果。
@@ -455,7 +291,11 @@ class FollowProvider(AbstractProvider):
 
         action_vector = [self.PASS]
         if good_actions:
-            action_vector.append([1, 2, 3, 4])
+            for a in range(1, 5):
+                if len(good_actions) >= a:
+                    action_vector.append(a)
+                else:
+                    break
         if max_actions.size > 0:
             action_vector.append(self.FORCE_MAX)
         if bombs:

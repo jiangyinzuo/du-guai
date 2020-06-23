@@ -33,8 +33,12 @@ class Human(GameEnv.AbstractPlayer):
         玩家跟牌
         """
         while True:
-            cards_v = input('你的手牌:{}\n>>> (输入要出的牌，以空格分隔。直接回车代表空过。)'
-                            .format(cards_view(self.hand))).upper()
+            cards_v = input('你的手牌: {}\n上家 {} 手牌数量: {}\n下家 {} 手牌数量: {}\n>>> (输入要出的牌，以空格分隔。直接回车代表空过。)'
+                            .format(cards_view(self.hand),
+                                    self.game_env.user_info(-1),
+                                    self.game_env.hand_p,
+                                    self.game_env.user_info(1),
+                                    self.game_env.hand_n)).upper()
             self.last_combo.cards_view = cards_v
             if self.valid_follow():
                 break

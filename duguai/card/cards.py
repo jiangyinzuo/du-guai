@@ -45,6 +45,8 @@ def card_to_di(card: np.ndarray) -> Tuple[Dict[int, list], int, int]:
     @return: 一个字典，最多牌的数量，最多的牌中的最大值
     """
     di = {1: [], 2: [], 3: [], 4: []}
+    if card.size == 0:
+        return di, 0, 0
 
     count: int = 0
     former_card = card[0]

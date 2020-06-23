@@ -9,8 +9,20 @@ def test_decomposed_value():
         ([5, 5, 6, 6, 7, 7], 6),
     ]
     for i in test_data:
-        cards, d_value = i[0], i[1]
+        cards, d_value = np.array(i[0]), i[1]
         assert AbstractDecomposer.decompose_value(cards) == d_value
+
+
+def test_card2():
+    decomposer = FollowDecomposer()
+    combo = Combo()
+    combo.cards_view = '5 6 7 8 9'
+
+    print(decomposer.get_good_follows(np.array([CARD_2]), combo))
+    combo.cards_view = '8 8 8 9 9'
+    print(decomposer.get_good_follows(np.array([CARD_2]), combo))
+    print(decomposer.get_good_follows(np.array([CARD_2, CARD_2]), combo))
+    print(decomposer.get_good_follows(np.array([CARD_2, CARD_2, CARD_2]), combo))
 
 
 def test_get_good_plays():
@@ -22,7 +34,9 @@ def test_get_good_plays():
     test_data = [
         [5, 6, 7, 7, 8, 8, 9, 10],
         [1, 1, 1, 1, 5, 5, 6, 6, 7, 7, 7, 9, 9, 10, 10, 11, 11, 14, 15],
-        [3, 4, 5, 5, 6, 6, 7, 7, 7, 8, 9, 10, 11]
+        [3, 4, 5, 5, 6, 6, 7, 7, 7, 8, 9, 10, 11],
+        [1, 2, 3, 3, 5, 6, 7, 7, 7, 8, 8, 9, 10, 11, 11, 11, 12,
+         13, 14, 15]
     ]
 
     for i in test_data:
@@ -41,7 +55,7 @@ def test_takes():
     for i in test_cards:
         combo.cards = i[2]
         cards = np.array(i[0])
-        assert len(play_decomposer.get_good_plays(cards)) == i[1]
+        print(play_decomposer.get_good_plays(cards))
         print(follow_decomposer.get_good_follows(cards, combo))
 
 
@@ -56,6 +70,12 @@ def test_good_single():
     combo.cards = [8]
     print(decomposer.get_good_follows(np.array([5, 7, CARD_G0, CARD_G1]), combo))
 
+    combo.cards_view = '2'
+    print(decomposer.get_good_follows(np.array([CARD_2]), combo))
+
+    combo.cards_view = 'A A'
+    print(decomposer.get_good_follows(np.array([CARD_2, CARD_2, CARD_2]), combo))
+
 
 def test_trio_with_one():
     combo = Combo()
@@ -66,11 +86,14 @@ def test_trio_with_one():
     print(decomposer.get_good_follows(np.array([8, 8, 8, 8, 9, 10]), combo))
 
 
-def test_bomb():
+def test_four_takes():
     decomposer = PlayDecomposer()
+    follow_decomposer = FollowDecomposer()
     combo = Combo()
-    combo.cards_view = '3 3 3 3 4 4 4 4 8'
-    print(decomposer.get_good_plays(combo.cards))
+    combo.cards_view = '4 4 4 4 7 8'
+    play_hand = decomposer.get_good_plays(combo.cards)
+    print(play_hand)
+    print(follow_decomposer.get_good_follows(np.array([9, 9, 9, 9, 8, 10]), combo))
 
 
 def test_seq():

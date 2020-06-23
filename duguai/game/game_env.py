@@ -176,19 +176,19 @@ class GameEnv:
         return len(self.cards[(self.turn + 1) % 3])
 
     @property
-    def last_combo_owner(self) -> int:
+    def last_combo_owner_id(self) -> int:
         """
         上一个牌是哪个玩家打的
         @return: 玩家id
         """
         return self._last_combo_owner
 
-    @property
-    def cur_identity(self) -> str:
+    def user_info(self, player: int) -> str:
         """
         当前打牌的身份与玩家id
+        @param player 0：当前玩家， 1：下家， -1：上家
         """
-        return ('[地主' if self.land_lord == self.turn else '[农民') + ' 玩家%d] ' % self.turn
+        return ('[地主' if self.land_lord == (self.turn + player + 3) % 3 else '[农民') + ' 玩家%d] ' % self.turn
 
     def __call_landlord(self):
         print('进入叫地主环节')
@@ -214,15 +214,16 @@ class GameEnv:
         while True:
             print(_SPLIT_LINE)
             if self._last_combo_owner == self.turn:
-                print(self.cur_identity + '出牌')
+                print(self.user_info(0) + '出牌')
                 self.players[self.turn].play()
             else:
-                print(self.cur_identity + '跟牌(先前的牌：%s)' % self._former_combo.cards_view)
+                print(self.user_info(0) + '跟牌(先前的牌由 玩家%d 打出 %s)'
+                      % (self._last_combo_owner, self._former_combo.cards_view))
                 self.players[self.turn].follow()
 
             if len(self.cards[self.turn]) == 0:
                 if self.land_lord == self.turn:
-                    print(self.cur_identity + '获胜')
+                    print(self.user_info(0) + '获胜')
                 else:
                     farmers = {0, 1, 2}
                     farmers.remove(self.land_lord)
@@ -233,8 +234,8 @@ class GameEnv:
                 self._last_combo_owner = self.turn
                 self._former_combo = self.players[self.turn].last_combo
 
-                print(self.cur_identity + '打出了：' + self._former_combo.cards_view)
+                print(self.user_info(0) + '打出了：' + self._former_combo.cards_view)
             else:
-                print(self.cur_identity + '空过')
+                print(self.user_info(0) + '空过')
 
             self.turn = (self.turn + 1) % 3
