@@ -5,18 +5,19 @@ from typing import List, Union
 
 import numpy as np
 
-
-def get_play_action(state_vector: np.ndarray, actions: List[int]) -> int:
-    """
-    通过Q-learning算法获取下一步动作
-    @param state_vector:
-    @param actions:
-    """
-    return sample(actions, 1)[0]
+from game.robot import Robot
 
 
-def get_follow_action(state_vector: List[int], actions: List[int]) -> int:
-    return sample(actions, 1)[0]
+class RandomActionPolicy(Robot.ActionPolicy):
+    """随机挑选一个动作的策略"""
+
+    def pick(self, state_vector: Union[np.ndarray, List[int]], action_list: List[int]) -> int:
+        """
+        随机挑选一个动作的策略
+        @param state_vector: 状态向量
+        @param action_list: 动作
+        """
+        return sample(action_list, 1)[0]
 
 
 class AbstractQLTrainer(metaclass=ABCMeta):
@@ -55,7 +56,6 @@ class PlayQLTrainer(AbstractQLTrainer):
     STATE_LEN = 699840
     ACTION_LEN = 16
     action_map = {1: 0, 2: 4, 3: 7, 4: 9, 5: 12, 6: 15, 7: 16}
-    q_table = np.zeros((699840, 16))
 
     @classmethod
     def state_to_int(cls, vector: Union[List[int], np.ndarray]) -> int:
@@ -71,8 +71,3 @@ class PlayQLTrainer(AbstractQLTrainer):
 
     def map_action(self, action: int) -> int:
         return self.action_map[action] + action // 10
-
-
-class QLEnvironment:
-    initial_play_q_table = np.zeros((PlayQLTrainer.STATE_LEN, PlayQLTrainer.ACTION_LEN))
-    initial_follow_q_table = np.zeros((FollowQLTrainer.STATE_LEN, FollowQLTrainer.ACTION_LEN))

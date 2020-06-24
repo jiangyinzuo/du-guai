@@ -5,6 +5,7 @@
 import logging
 import traceback
 
+from ai.q_learning import RandomActionPolicy
 from duguai import mode, test
 from duguai.game.game_env import GameEnv
 from game.human import Human
@@ -38,9 +39,9 @@ if __name__ == '__main__':
     try:
         if test == 'on':
             for i in range(100):
-                game_env.add_players(Robot(game_env, 0),
-                                     Robot(game_env, 1),
-                                     Robot(game_env, 2))
+                game_env.add_players(Robot(game_env, 0, RandomActionPolicy()),
+                                     Robot(game_env, 1, RandomActionPolicy()),
+                                     Robot(game_env, 2, RandomActionPolicy()))
                 game_env.start()
             print('success!')
         else:
