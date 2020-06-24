@@ -17,8 +17,8 @@ def log_locals(err: Exception):
     @param err: 异常
     """
     flag = True
-    for i in traceback.walk_tb(err.__traceback__):
-        tb_frame = i[0]
+    for tb in traceback.walk_tb(err.__traceback__):
+        tb_frame = tb[0]
         logging.error('co_name: {}; f_lineno: {}'.format(tb_frame.f_code.co_name, tb_frame.f_lineno))
         f_locals: dict = tb_frame.f_locals
 
@@ -37,12 +37,12 @@ if __name__ == '__main__':
     game_env = GameEnv()
     try:
         if test == 'on':
-            for i in range(121):
+            for i in range(100):
                 game_env.add_players(Robot(game_env, 0),
                                      Robot(game_env, 1),
                                      Robot(game_env, 2))
                 game_env.start()
-
+            print('success!')
         else:
             game_env.add_players(Human(game_env, 0),
                                  Robot(game_env, 1),

@@ -4,14 +4,13 @@ AI进行斗地主操作的类，多种算法在此集成
 @author 江胤佐
 """
 from copy import deepcopy
+from typing import Iterator, Union, Tuple
 
 from ai import process
 from ai.call_landlord import get_svc, z_score
 from ai.executor import execute_play, execute_follow
 from ai.provider import PlayProvider, FollowProvider
 from ai.q_learning import get_play_action, get_follow_action
-from card.cards import cards_view
-from duguai import mode
 from game.game_env import GameEnv, _remove_last_combo
 
 
@@ -28,16 +27,28 @@ class Robot(GameEnv.AbstractPlayer):
         self.follow_provider = FollowProvider(order)
         self.__landlord_id: int = 0
 
+    def update_msg(self, msgs: Union[Iterator, str]) -> None:
+        """Robot always ignores text message."""
+        pass
+
+    def update_last_combo(self, is_play: bool) -> None:
+        """用于更新Q表"""
+        # TODO
+        pass
+
+    def update_game_over(self, victor: Union[Tuple[int], int]) -> None:
+        """用于更新Q表"""
+        # TODO
+        pass
+
     def call_landlord(self) -> bool:
         """
         AI叫地主
         @return: 叫: True; 不叫: False
         """
-        if mode == 'debug':
-            print('AI{}的手牌:'.format(self.order), cards_view(self.hand))
         return self.svc.predict(z_score([process(self.hand), ])) == 1
 
-    def notify_landlord(self, landlord_id: int) -> None:
+    def update_landlord(self, landlord_id: int) -> None:
         """
         AI保存地主玩家ID
         """
@@ -55,13 +66,13 @@ class Robot(GameEnv.AbstractPlayer):
             hand_p=self.game_env.hand_p,
             hand_n=self.game_env.hand_n,
             cards=self.hand,
-            last_combo=deepcopy(self.game_env.former_combo))
+            last_combo=deepcopy(self.game_env.last_combo))
 
         action: int = get_follow_action(state, action_list)
         self.last_combo.cards = execute_follow(action, bombs, good_actions, max_actions)
         if not self.valid_follow():
             raise ValueError('AI跟牌不合法, AI出的牌: {}, 上一次牌: {}'
-                             .format(self.last_combo.cards_view, self.game_env.former_combo))
+                             .format(self.last_combo.cards_view, self.game_env.last_combo))
 
     @_remove_last_combo
     def play(self) -> None:

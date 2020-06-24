@@ -78,8 +78,7 @@ class AbstractDecomposer(metaclass=ABCMeta):
         # 将要输出的好的牌型列表，每次调用前清空
         self._output: List[np.ndarray] = []
 
-    def _calc_q(self, lt2_state: np.ndarray, actions: np.ndarray[np.ndarray], no_max_q: bool = False) \
-            -> np.ndarray:
+    def _calc_q(self, lt2_state: np.ndarray, actions: np.ndarray[np.ndarray]) -> np.ndarray:
         """对每一种状态-动作计算其Q"""
         result = []
         for a in actions:
@@ -98,19 +97,18 @@ class AbstractDecomposer(metaclass=ABCMeta):
                     reward = combo.seq_len * 2
 
             next_state: np.ndarray = get_next_state(lt2_state, a)
-            if next_state.size > 0 or no_max_q:
+            if next_state.size > 0:
                 d_value = self.decompose_value(lt2_state, next_state, a)
                 result.append(d_value + reward + len(a))
             else:
                 # 该动作打完就没牌了，故d值为最大值
-                result.append(MAX_Q)
+                result.append(MAX_Q + reward + len(a))
         return np.array(result)
 
     def _eval_actions(self,
                       func,
                       lt2_state: np.ndarray,
                       all_actions: bool,
-                      no_max_q: bool = False,
                       **kwargs) -> Tuple[np.ndarray, np.ndarray]:
         actions = np.array(
             func(lt2_state, kwargs['length']) if 'card_list' not in kwargs.keys() else func(kwargs['card_list'],
@@ -118,7 +116,7 @@ class AbstractDecomposer(metaclass=ABCMeta):
                                                                                             kwargs['length']))
         # q = d(next state) + len(a)
         # 计算lt2_state下每一个action的q值
-        q_list: np.ndarray = self._calc_q(lt2_state, actions, no_max_q)
+        q_list: np.ndarray = self._calc_q(lt2_state, actions)
         if len(q_list) == 0:
             return np.array([]), np.array([])
 
@@ -285,7 +283,7 @@ class FollowDecomposer(AbstractDecomposer):
 
     @classmethod
     def _delta_q(cls, _max_q, _q):
-        return (_max_q - _q) if _max_q - _q < 1000 else (_max_q - MAX_Q - _q)
+        return (_max_q - _q) if _max_q - _q < 1000 else (_max_q - MAX_Q + 1 - _q)
 
     def _add_to_main_lists_and_find_max(self, a: np.ndarray, q: int, max_q: int):
 

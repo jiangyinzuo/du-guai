@@ -206,7 +206,7 @@ class Combo:
         if type(v) is str:
             v = v.split()
         try:
-            self._cards = np.array([VIEW_TO_VALUE[c] for c in v])
+            self._cards = np.array([VIEW_TO_VALUE[c.upper()] for c in v])
         except KeyError:
             self._bit_info = INVALID_BIT
             return

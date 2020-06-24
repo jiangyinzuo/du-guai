@@ -13,6 +13,10 @@ from ai.decompose import PlayDecomposer, FollowDecomposer, PlayHand
 from card.combo import Combo
 
 
+def _to_le(number: int, ceil: int) -> int:
+    return number if number < ceil else ceil
+
+
 class AbstractProvider(metaclass=ABCMeta):
     """
     给AI提供state和action的类
@@ -143,6 +147,7 @@ class PlayProvider(AbstractProvider):
         AI出牌时，给AI提供状态的类
         状态是一个长度为12的特征向量。特征的含义以及取值范围如下：
         （备注：// 表示整除）
+        f_min <= f_max
 
         状态说明               属性名                 取值范围（均为整数）
         ------------------------------------------------------------
@@ -189,16 +194,16 @@ class PlayProvider(AbstractProvider):
                 return 3
 
         @classmethod
-        def _f_min(cls, solos: List[np.ndarray], t: int = 1) -> int:
-            if len(solos) == 1:
-                value = solos[0][0]
+        def _f_min(cls, actions: List[np.ndarray], t: int = 1) -> int:
+            if len(actions) == 1:
+                value = actions[0][0]
             else:
-                value = np.mean(np.partition(np.array(solos).ravel(), 1)[0:2])
+                value = np.mean(np.partition(np.array(actions).ravel(), 1)[0:2])
             return cls.__value_to_f1(value) if t == 1 else cls.__value_to_f2(value)
 
         @classmethod
-        def _f_max(cls, solos: List[np.ndarray], t: int = 1) -> int:
-            value = np.max(solos)
+        def _f_max(cls, actions: List[np.ndarray], t: int = 1) -> int:
+            value = np.max(actions)
             return cls.__value_to_f1(value) if t == 1 else cls.__value_to_f2(value)
 
         def __init__(self, outer: AbstractProvider):
@@ -213,21 +218,23 @@ class PlayProvider(AbstractProvider):
             @return: 长度为 STATE_LEN 的特征向量
             """
             state_vector = np.zeros(PlayProvider.StateProvider.STATE_LEN, dtype=int)
-            if len(hand.solos):
+            if hand.solos:
                 state_vector[0:2] = self._f_min(hand.solos), self._f_max(hand.solos)
-            if len(hand.pairs):
+            if hand.pairs:
                 state_vector[2:4] = self._f_min(hand.pairs, 2), self._f_max(hand.pairs, 2)
 
             trios_count = len(hand.trios) + len(hand.planes) * 2
-            state_vector[4] = trios_count if trios_count <= 2 else 2
+            state_vector[4] = _to_le(trios_count, 2)
             if hand.seq_solo5:
                 state_vector[5] = np.max(hand.seq_solo5)
 
             state_vector[6] = 1 if hand.other_seq or hand.planes else 0
-            state_vector[7] = 2 if len(hand.bombs) > 2 else len(hand.bombs)
+            state_vector[7] = _to_le(len(hand.bombs), 2)
 
             state_vector[8] = int(hand.has_rocket)
-            state_vector[9:12] = self._outer.calc_identity(self._outer._player_id), hand_p - 1, hand_n - 1
+            state_vector[9:12] = \
+                self._outer.calc_identity(self._outer._player_id), _to_le(hand_p - 1, 5), _to_le(hand_n - 1, 5)
+
             return state_vector
 
 
@@ -239,11 +246,12 @@ class FollowProvider(AbstractProvider):
 
     状态说明               属性名                 取值范围（均为整数）
     ------------------------------------------------------------
-    最佳拆牌的delta_q       delta_q 越大越拆得差    [0, 5]
-    玩家身份                player               [0, 2]
-    上一个牌是谁打的         last_combo_owner      [0, 2]
-    上家手牌数-1            hand_p(大于5都记作5)    [0, 5]
-    下家手牌数-1            hand_n(大于5都记作5)    [0, 5]
+    最佳拆牌的delta_q       delta_q 越大越拆得差         [0, 5]
+    玩家身份                player                    [0, 2]
+    上一个牌是谁打的         last_combo_owner           [0, 2]
+    上家手牌数-1            hand_p(大于5都记作5)         [0, 5]
+    下家手牌数-1            hand_n(大于5都记作5)         [0, 5]
+    上一个牌的数量    last_combo_len(大于5都记作5)        [0, 5]
 
     ------------------------------------------------------------
 
@@ -263,7 +271,7 @@ class FollowProvider(AbstractProvider):
     BIG_BOMB = 7
     ROCKET = 8
 
-    STATE_LEN = 5
+    STATE_LEN = 6
 
     def __init__(self, player_id: int):
         super().__init__(player_id)
@@ -272,8 +280,8 @@ class FollowProvider(AbstractProvider):
 
     def provide(self,
                 last_combo_owner_id: int,
-                hand_p,
-                hand_n,
+                hand_p: int,
+                hand_n: int,
                 cards: np.ndarray,
                 last_combo: Combo) \
             -> Tuple[List[int], List[np.ndarray], List[np.ndarray], np.ndarray, List[int]]:
@@ -310,7 +318,8 @@ class FollowProvider(AbstractProvider):
         state = [min_delta_q,
                  self.calc_identity(self._player_id),
                  self.calc_identity(last_combo_owner_id),
-                 hand_p,
-                 hand_n]
+                 _to_le(hand_p - 1, 5),
+                 _to_le(hand_n - 1, 5),
+                 _to_le(last_combo.cards.size, 5)]
 
         return state, bombs, good_actions, max_actions, action_vector

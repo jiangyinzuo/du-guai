@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+"""
+加载.env环境变量
+"""
 import os
 
 from dotenv import load_dotenv, find_dotenv

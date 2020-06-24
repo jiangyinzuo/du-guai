@@ -68,10 +68,10 @@ __MEAN = np.array([0.95726285, 0.09313241, 1.24184783])
 __SCALE = np.array([1.02556338, 0.29399838, 0.90237814])
 
 
-def z_score(X):
+def z_score(x_vector):
     """
     标准化X数组
-    @param X: 待预测的数组
+    @param x_vector: 待预测的数组
     @return: 标准化后的数组
     """
-    return (X - __MEAN) / __SCALE
+    return (x_vector - __MEAN) / __SCALE

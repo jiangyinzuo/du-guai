@@ -1,5 +1,9 @@
 # -*- coding: utf-8 -*-
-from typing import Tuple, Dict, List, Union
+"""
+和卡牌有关的函数模块
+@author: 江胤佐
+"""
+from typing import Tuple, List, Union
 
 import numpy as np
 

@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from typing import Dict
 
 CARD_3, CARD_4, CARD_5, CARD_6, CARD_7 = 1, 2, 3, 4, 5
 CARD_8, CARD_9, CARD_10, CARD_J, CARD_Q = 6, 7, 8, 9, 10
@@ -10,7 +11,7 @@ CARD_VIEW: dict = {
     11: 'K ', 12: 'A ', 13: '2 ', 14: 'g ', 15: 'G '
 }
 
-VIEW_TO_VALUE: dict = {
+VIEW_TO_VALUE: Dict[str, int] = {
     '3': CARD_3, '4': CARD_4, '5': CARD_5, '6': CARD_6, '7': CARD_7,
     '8': CARD_8, '9': CARD_9, '10': CARD_10, 'J': CARD_J,
     'Q': CARD_Q, 'K': CARD_K, 'A': CARD_A, '2': CARD_2, 'g': CARD_G0,

@@ -1,6 +1,12 @@
 # -*- coding: utf-8 -*-
+"""
+人类玩家模块
+@author: 江胤佐
+"""
+from typing import Iterator, Union, Tuple
+
 from card.cards import cards_view
-from game.game_env import GameEnv, _remove_last_combo
+from game.game_env import GameEnv, _remove_last_combo, SPLIT_LINE
 from utils import is_in
 
 
@@ -13,6 +19,37 @@ class Human(GameEnv.AbstractPlayer):
     def __init__(self, game_env: GameEnv, order: int):
         super().__init__(game_env, order)
 
+    def update_msg(self, msgs: Union[Iterator, str]) -> None:
+        """
+        人类玩家收到GameEnv对象发来的消息
+        @param msgs: 消息
+        """
+        if isinstance(msgs, Iterator):
+            for msg in msgs:
+                print(msg)
+        else:
+            print(msgs)
+
+    def update_last_combo(self, is_play: bool) -> None:
+        """
+        GameEnv更新了上一次出牌操作
+        @param is_play: 是否为出牌
+        """
+        if self.game_env.last_combo_owner_id == self.game_env.turn:
+            print(self.game_env.user_info(0) +
+                  '打出了' +
+                  self.game_env.last_combo.cards_view)
+        else:
+            print(self.game_env.user_info(0) + '空过')
+        print(SPLIT_LINE)
+
+    def update_game_over(self, victor: Union[Tuple[int], int]) -> None:
+        """
+        GameEnv通知玩家游戏结束
+        @param victor: 胜利者
+        """
+        print('玩家', victor, '获胜')
+
     def call_landlord(self) -> bool:
         """
         玩家叫地主
@@ -21,11 +58,14 @@ class Human(GameEnv.AbstractPlayer):
         print('玩家{}的手牌:'.format(self.order), cards_view(self.hand))
         return input('>>> (输入1叫地主, 输入其它键不叫地主)') == '1'
 
-    def notify_landlord(self, landlord_id: int) -> None:
+    def update_landlord(self, landlord_id: int) -> None:
         """
         通知人类玩家，谁成为了地主
         """
+        print(SPLIT_LINE)
         print('玩家{}叫了地主'.format(landlord_id))
+        print('地主获得了3张牌: {}'.format(cards_view(self.game_env.cards[3])))
+        print(SPLIT_LINE)
 
     @_remove_last_combo
     def follow(self) -> None:
