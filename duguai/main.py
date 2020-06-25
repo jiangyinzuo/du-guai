@@ -6,6 +6,7 @@ import logging
 import sys
 
 sys.path.append('..')
+
 if __name__ == '__main__':
     from duguai.ai.q_learning import RandomAgent, QLExecuteAgent, load_q_table, PlayQLHelper, FollowQLHelper
     from duguai.game.human import Human
@@ -16,10 +17,10 @@ if __name__ == '__main__':
 
     game_env = GameEnv()
     try:
+        play_q_table = load_q_table('../script/play_q_table.npy', PlayQLHelper.STATE_LEN, PlayQLHelper.ACTION_LEN)
+        follow_q_table = load_q_table('../script/follow_q_table.npy', FollowQLHelper.STATE_LEN,
+                                      FollowQLHelper.ACTION_LEN)
         if test == 'on':
-            play_q_table = load_q_table('../script/play_q_table.npy', PlayQLHelper.STATE_LEN, PlayQLHelper.ACTION_LEN)
-            follow_q_table = load_q_table('../script/follow_q_table.npy', FollowQLHelper.STATE_LEN,
-                                          FollowQLHelper.ACTION_LEN)
             robot0 = Robot(game_env, 0, RandomAgent())
             robot1 = Robot(game_env, 1, QLExecuteAgent(play_q_table, follow_q_table))
             robot2 = Robot(game_env, 2, QLExecuteAgent(play_q_table, follow_q_table))
@@ -29,11 +30,17 @@ if __name__ == '__main__':
             print('success!')
         else:
             human = Human(game_env, 0)
-            robot1 = Robot(game_env, 1, RandomAgent())
-            robot2 = Robot(game_env, 2, RandomAgent())
+            robot1 = Robot(game_env, 1, QLExecuteAgent(play_q_table, follow_q_table))
+            robot2 = Robot(game_env, 2, QLExecuteAgent(play_q_table, follow_q_table))
             game_env.add_players(human, robot1, robot2)
-            for i in range(5):
-                game_env.start()
+
+            game_env.start()
+    except EOFError as e:
+        game_env.notify(GameEnv.U_MSG, msgs='Bye~')
+        exit(0)
+    except KeyboardInterrupt as e:
+        game_env.notify(GameEnv.U_MSG, msgs='Bye~')
+        exit(0)
     except Exception as e:
         logging.exception(e)
         if mode == 'debug':
