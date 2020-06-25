@@ -1,17 +1,23 @@
 # -*- coding: utf-8 -*-
-from abc import ABCMeta, abstractmethod
-from random import sample
-from typing import List, Union
+"""
+Q-Learning算法相关模块
+该模块包含3个智能体（Agent），分别执行随机策略、查询Q表（不训练）、Q-Learning
+
+@author: 江胤佐
+"""
+from abc import ABCMeta, abstractmethod, ABC
+from random import sample, random
+from typing import List, Union, Optional, Tuple
 
 import numpy as np
 
 from game.robot import Robot
 
 
-class RandomActionPolicy(Robot.ActionPolicy):
+class RandomAgent(Robot.Agent):
     """随机挑选一个动作的策略"""
 
-    def pick(self, state_vector: Union[np.ndarray, List[int]], action_list: List[int]) -> int:
+    def exec(self, state_vector: Union[np.ndarray, List[int]], action_list: List[int]) -> int:
         """
         随机挑选一个动作的策略
         @param state_vector: 状态向量
@@ -20,7 +26,101 @@ class RandomActionPolicy(Robot.ActionPolicy):
         return sample(action_list, 1)[0]
 
 
-class AbstractQLTrainer(metaclass=ABCMeta):
+class AbstractQLAgent(Robot.Agent, ABC):
+    """
+    抽象Q-Learning智能体
+    """
+
+    def __init__(self, play_q_table: np.ndarray, follow_q_table: np.ndarray):
+        self._play_q_table = play_q_table
+        self._follow_q_table = follow_q_table
+
+    def _get_q_table1_state1(self, state_vector1: Union[np.ndarray, List[int]]) -> Tuple[np.ndarray, int]:
+        if len(state_vector1) == PlayQLHelper.STATE_VECTOR_SIZE:
+            return self._play_q_table, PlayQLHelper.state_to_int(state_vector1)
+        return self._follow_q_table, FollowQLHelper.state_to_int(state_vector1)
+
+
+class QLExecuteAgent(AbstractQLAgent):
+    """
+    不训练Q表，利用现有Q表执行行动的智能体
+    """
+
+    def __init__(self, play_q_table: np.ndarray, follow_q_table: np.ndarray):
+        super().__init__(play_q_table, follow_q_table)
+
+    def exec(self, state_vector1: Union[np.ndarray, List[int]], actions1: List[int]) -> int:
+        """
+        根据状态向量和动作直接查询Q表执行
+        @param state_vector1: 状态向量
+        @param actions1: 动作数组
+        @return: Q值最大的动作
+        """
+        q_table1, state1 = self._get_q_table1_state1(state_vector1)
+        return actions1[int(np.argmax(q_table1[state1, actions1]))]
+
+
+class QLTrainingAgent(AbstractQLAgent):
+    """
+    训练Q-learning算法的智能体
+    @note: 该类不负责持久化保存训练完的Q表
+    """
+
+    def __init__(self, play_q_table: np.ndarray, follow_q_table: np.ndarray, alpha: float, gamma: float,
+                 epsilon: float = 0.1):
+        super().__init__(play_q_table, follow_q_table)
+
+        self._alpha = alpha
+        self._gamma = gamma
+        self._epsilon = epsilon
+
+        self.action0: int = -1
+        self.state0: int = -1
+        self.q_table0: Optional[np.ndarray] = None
+
+    def _epsilon_greedy(self, q_table: np.ndarray, actions: List[int], state: int) -> int:
+        """
+        epsilon-贪心法。
+        大多数时候(1-epsilon)的概率挑选最优动作A_t := argmax Q_t(a)
+        有epsilon的概率随机挑选一个状态
+        """
+        if random() < self._epsilon:
+            return sample(actions, 1)[0]
+        return actions[int(np.argmax(q_table[state, actions]))]
+
+    def _update_q_table0(self, state1: int, actions1: List[int], q_table1: np.ndarray):
+        """使用Q-Learning算法更新Q表"""
+        q_value0 = self.q_table0[self.state0, self.action0]
+        self.q_table0[self.state0, self.action0] += self._alpha * (
+                -1 + self._gamma * (np.max(q_table1[state1, actions1]) - q_value0)
+        )
+
+    def update_game_over(self, reward: int) -> None:
+        """游戏结束时，更新Q表"""
+        q_value0 = self.q_table0[self.state0, self.action0]
+        self.q_table0[self.state0, self.action0] += self._alpha * (reward - q_value0)
+
+    def exec(self, state_vector1: Union[np.ndarray, List[int]], actions1: List[int]) -> int:
+        """
+        执行Q-Learning算法
+        @param state_vector1: 状态向量
+        @param actions1: 动作
+        @return: 通过Q-Learning选择出来的动作
+        """
+        q_table1, state1 = self._get_q_table1_state1(state_vector1)
+        if self.q_table0 is not None:
+            self._update_q_table0(state1, actions1, q_table1)
+
+        self.q_table0 = q_table1
+        self.state0 = state1
+        self.action0 = self._epsilon_greedy(q_table1, actions1, state1)
+        return self.action0
+
+
+class AbstractQLHelper(metaclass=ABCMeta):
+    """
+    Q-Learning辅助类
+    """
 
     def __init__(self, state_vector: Union[List[int], np.ndarray], actions: List[int]):
         self._actions = actions
@@ -35,7 +135,9 @@ class AbstractQLTrainer(metaclass=ABCMeta):
         pass
 
 
-class FollowQLTrainer(AbstractQLTrainer):
+class FollowQLHelper(AbstractQLHelper):
+    """跟牌时Q-Learning的辅助类"""
+
     STATE_LEN = 11664
     ACTION_LEN = 9
 
@@ -48,14 +150,16 @@ class FollowQLTrainer(AbstractQLTrainer):
         return vector[-6] * 1944 + vector[-5] * 648 + vector[-4] * 216 + vector[-3] * 36 + vector[-2] * 6 + vector[-1]
 
 
-class PlayQLTrainer(AbstractQLTrainer):
-    n_map = {0: 0, 1: 1, 2: 3, 3: 6}
+class PlayQLHelper(AbstractQLHelper):
+    """出牌时Q-Learning的辅助类"""
 
-    v_weight_map = {11: 1, 10: 6, 9: 36, 8: 108, 7: 216, 6: 648, 5: 1296, 4: 3888}
+    __N_MAP = {0: 0, 1: 1, 2: 3, 3: 6}
+    __V_WEIGHT_MAP = {11: 1, 10: 6, 9: 36, 8: 108, 7: 216, 6: 648, 5: 1296, 4: 3888}
+
+    STATE_VECTOR_SIZE = 12
 
     STATE_LEN = 699840
-    ACTION_LEN = 16
-    action_map = {1: 0, 2: 4, 3: 7, 4: 9, 5: 12, 6: 15, 7: 16}
+    ACTION_LEN = 17
 
     @classmethod
     def state_to_int(cls, vector: Union[List[int], np.ndarray]) -> int:
@@ -64,10 +168,7 @@ class PlayQLTrainer(AbstractQLTrainer):
         @return: [0, 699839]中的一个整数
         """
 
-        n0 = vector[0] + cls.n_map[vector[1]]
-        n1 = vector[2] + cls.n_map[vector[3]]
+        n0 = vector[0] + cls.__N_MAP[vector[1]]
+        n1 = vector[2] + cls.__N_MAP[vector[3]]
 
-        return n0 * 69984 + n1 * 11664 + sum(vector[i] * cls.v_weight_map[i] for i in range(4, 12))
-
-    def map_action(self, action: int) -> int:
-        return self.action_map[action] + action // 10
+        return n0 * 69984 + n1 * 11664 + sum(vector[i] * cls.__V_WEIGHT_MAP[i] for i in range(4, 12))

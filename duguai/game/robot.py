@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from abc import ABCMeta, abstractmethod
 from copy import deepcopy
-from typing import Iterator, Union, Tuple, List
+from typing import Union, List, Set
 
 import numpy as np
 
@@ -24,27 +24,20 @@ class Robot(GameEnv.AbstractPlayer):
     @author 江胤佐
     """
 
-    def __init__(self, game_env: GameEnv, order: int, action_policy: Robot.ActionPolicy):
+    def __init__(self, game_env: GameEnv, order: int, agent: Robot.Agent):
         super().__init__(game_env, order)
         self.svc = get_svc()
         self.play_provider = PlayProvider(order)
         self.follow_provider = FollowProvider(order)
         self.__landlord_id: int = 0
-        self._action_policy: Robot.ActionPolicy = action_policy
+        self._agent: Robot.Agent = agent
 
-    def update_msg(self, msgs: Union[Iterator, str]) -> None:
-        """Robot always ignores text message."""
-        pass
-
-    def update_last_combo(self, is_play: bool) -> None:
-        """用于更新Q表"""
-        # TODO
-        pass
-
-    def update_game_over(self, victor: Union[Tuple[int], int]) -> None:
-        """用于更新Q表"""
-        # TODO
-        pass
+    def update_game_over(self, victors: Set[int]) -> None:
+        """训练时，胜利奖励40，失败惩罚-40"""
+        if self.order in victors:
+            self._agent.update_game_over(40)
+        else:
+            self._agent.update_game_over(-40)
 
     def call_landlord(self) -> bool:
         """
@@ -61,15 +54,22 @@ class Robot(GameEnv.AbstractPlayer):
         self.play_provider.add_landlord_id(landlord_id)
         self.follow_provider.add_landlord_id(landlord_id)
 
-    class ActionPolicy(metaclass=ABCMeta):
-        """动作挑选的策略接口"""
+    class Agent(metaclass=ABCMeta):
+        """动作挑选的智能体"""
+
+        def update_game_over(self, reward: int) -> None:
+            """
+            通知智能体游戏结束
+            @param reward: 结束游戏时更新Q表的奖励
+            """
+            pass
 
         @abstractmethod
-        def pick(self, state_vector: Union[np.ndarray, List[int]], action_list: List[int]) -> int:
+        def exec(self, state_vector: Union[np.ndarray, List[int]], actions: List[int]) -> int:
             """
-            根据状态向量挑选一个动作
+            根据状态向量和动作列表执行一个动作
             @param state_vector: 状态向量
-            @param action_list: 动作
+            @param actions: 动作
             @return: 从action_list中挑选出来的动作
             """
             pass
@@ -86,7 +86,7 @@ class Robot(GameEnv.AbstractPlayer):
             cards=self.hand,
             last_combo=deepcopy(self.game_env.last_combo))
 
-        action: int = self._action_policy.pick(state, action_list)
+        action: int = self._agent.exec(state, action_list)
         self.last_combo.cards = execute_follow(action, bombs, good_actions, max_actions)
         if not self.valid_follow():
             raise ValueError('AI跟牌不合法, AI出的牌: {}, 上一次牌: {}'
@@ -101,7 +101,7 @@ class Robot(GameEnv.AbstractPlayer):
             self.hand,
             hand_p=self.game_env.hand_p,
             hand_n=self.game_env.hand_n)
-        action: int = self._action_policy.pick(state_vector, action_list)
+        action: int = self._agent.exec(state_vector, action_list)
         self.last_combo.cards = execute_play(play_hand, action)
         if not self.last_combo.is_valid():
             raise ValueError('AI出牌非法, AI出的牌: {}'.format(self.last_combo.cards_view))

@@ -14,25 +14,30 @@ from card import CARD_G1, CARD_G0
 PA = PlayProvider.ActionProvider
 
 
-def _choose_play(play_hand, play_kind, play_strength) -> np.ndarray:
-    if play_kind == 1:
+def _choose_play(play_hand, action: int) -> np.ndarray:
+    if 1 <= action <= 3:
         action_list = play_hand.solos
-    elif play_kind == 2:
+        offset = action - 1
+    elif action < PA.BASE_TRIO:
         action_list = play_hand.pairs
-    elif play_kind == 3:
+        offset = action - PA.BASE_PAIR
+    elif action < PA.BASE_FOUR:
         action_list = play_hand.trios_take
-    elif play_kind == 4:
+        offset = action - PA.BASE_TRIO
+    elif action < PA.BASE_FIVE:
         action_list = play_hand.bombs
-    elif play_kind == 5:
+        offset = action - PA.BASE_FOUR
+    elif action < 15:
         action_list = play_hand.seq_solo5
+        offset = action - PA.BASE_FIVE
     else:
-        raise ValueError('play_kind 必须在1-5当中')
+        raise ValueError('action: %d错误' % action)
 
-    if play_strength == 1:
+    if offset == 0:
         return action_list[0]
-    elif play_strength == 2:
+    elif offset == 1:
         return action_list[len(action_list) // 2]
-    elif play_strength == 3:
+    elif offset == 2:
         return action_list[-1]
     else:
         raise ValueError('play_strength 必须在1-3当中')
@@ -45,6 +50,7 @@ def execute_play(play_hand: PlayHand, action: int) -> np.ndarray:
     @param action: Q-learning算法挑选出来的动作
     @return: 数组，表示要出的牌
     """
+
     if action == PA.MIN_SOLO:
         return np.array([play_hand.min_solo])
     elif action == PA.MAX_SOLO:
@@ -58,9 +64,7 @@ def execute_play(play_hand: PlayHand, action: int) -> np.ndarray:
     elif action == PA.FOUR_TAKE_TWO:
         return play_hand.bombs_take[0]
 
-    play_kind = action % 10
-    play_strength = action // 10
-    return _choose_play(play_hand, play_kind, play_strength)
+    return _choose_play(play_hand, action)
 
 
 def execute_follow(action: int, bombs: List[np.ndarray], good_actions: List[np.ndarray], max_actions: np.ndarray) \

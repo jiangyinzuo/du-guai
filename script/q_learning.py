@@ -5,7 +5,11 @@ import os
 
 import numpy as np
 
-from duguai.ai.q_learning import PlayQLTrainer, FollowQLTrainer
+from duguai import mode
+from duguai.ai.q_learning import PlayQLHelper, FollowQLHelper, QLTrainingAgent
+from game.game_env import GameEnv
+from game.robot import Robot
+from logger import log_locals
 
 
 def load_q_table(file_name: str, row: int, col: int) -> np.ndarray:
@@ -37,15 +41,36 @@ def save_q_table(file_name: str, q_table: np.ndarray):
     @param q_table: 待保存的Q表
     """
     np.save(file_name, q_table)
+    print(q_table)
     logging.info('保存成功')
 
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.DEBUG)
 
-    play_q_table = load_q_table('play_q_table.npy', PlayQLTrainer.STATE_LEN, PlayQLTrainer.ACTION_LEN)
-    follow_q_table = load_q_table('follow_q_table.npy', FollowQLTrainer.STATE_LEN, FollowQLTrainer.ACTION_LEN)
+    play_q_table = load_q_table('play_q_table.npy', PlayQLHelper.STATE_LEN, PlayQLHelper.ACTION_LEN)
+    follow_q_table = load_q_table('follow_q_table.npy', FollowQLHelper.STATE_LEN, FollowQLHelper.ACTION_LEN)
 
-    play_q_table[0, 0] = -1
-    save_q_table('play_q_table.npy', play_q_table)
-    save_q_table('follow_q_table.npy', follow_q_table)
+    game_env = GameEnv()
+
+    agent0 = QLTrainingAgent(play_q_table, follow_q_table, 0.5, 0.4)
+    agent1 = QLTrainingAgent(play_q_table, follow_q_table, 0.5, 0.4)
+    agent2 = QLTrainingAgent(play_q_table, follow_q_table, 0.5, 0.4)
+
+    robot0 = Robot(game_env, 0, agent0)
+    robot1 = Robot(game_env, 1, agent1)
+    robot2 = Robot(game_env, 2, agent2)
+    game_env.add_players(robot0, robot1, robot2)
+
+    try:
+        for i in range(3000):
+            game_env.start()
+            if i % 100 == 0:
+                print('训练了%d次' % (i + 1))
+    except Exception as e:
+        logging.exception(e)
+        if mode == 'debug':
+            log_locals(e)
+    finally:
+        save_q_table('play_q_table.npy', play_q_table)
+        save_q_table('follow_q_table.npy', follow_q_table)

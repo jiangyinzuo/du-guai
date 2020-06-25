@@ -3,14 +3,14 @@
 人类玩家模块
 @author: 江胤佐
 """
-from typing import Iterator, Union, Tuple
+from typing import Iterator, Union, Set
 
 from card.cards import cards_view
-from game.game_env import GameEnv, _remove_last_combo, SPLIT_LINE
+from duguai.game.game_env import GameEnv, _remove_last_combo, SPLIT_LINE
 from utils import is_in
 
 
-class Human(GameEnv.AbstractPlayer):
+class Human(GameEnv.AbstractPlayer, GameEnv.MessageObserver):
     """
     人类玩家，由控制台输入输出进行操作
     @author 江胤佐
@@ -30,10 +30,9 @@ class Human(GameEnv.AbstractPlayer):
         else:
             print(msgs)
 
-    def update_last_combo(self, is_play: bool) -> None:
+    def update_last_combo(self) -> None:
         """
         GameEnv更新了上一次出牌操作
-        @param is_play: 是否为出牌
         """
         if self.game_env.last_combo_owner_id == self.game_env.turn:
             print(self.game_env.user_info(0) +
@@ -43,12 +42,12 @@ class Human(GameEnv.AbstractPlayer):
             print(self.game_env.user_info(0) + '空过')
         print(SPLIT_LINE)
 
-    def update_game_over(self, victor: Union[Tuple[int], int]) -> None:
+    def update_game_over(self, victors: Set[int]) -> None:
         """
         GameEnv通知玩家游戏结束
-        @param victor: 胜利者
+        @param victors: 胜利者
         """
-        print('玩家', victor, '获胜')
+        print('玩家', victors, '获胜')
 
     def call_landlord(self) -> bool:
         """

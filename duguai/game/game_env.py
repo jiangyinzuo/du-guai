@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import abc
 from functools import wraps
-from typing import List, Iterator, Union, Tuple
+from typing import List, Iterator, Union, Set
 
 import numpy as np
 
@@ -46,10 +46,23 @@ class GameEnv:
     2. 一些游戏流程的方法，如洗牌。
     """
 
-    U_LANDLORD = 'update_landlord'
-    U_GAME_OVER = 'update_game_over'
+    # ------- MessageObserver中通知消息的方法名 -----------
+
     U_LAST_COMBO = 'update_last_combo'
     U_MSG = 'update_msg'
+
+    class MessageObserver(metaclass=abc.ABCMeta):
+        """接收文本消息的观察者"""
+
+        @abc.abstractmethod
+        def update_msg(self, msgs: Union[Iterator, str]) -> None:
+            """GameEnv通知玩家字符串消息"""
+            pass
+
+        @abc.abstractmethod
+        def update_last_combo(self) -> None:
+            """GameEnv通知出牌"""
+            pass
 
     class AbstractPlayer(metaclass=abc.ABCMeta):
         """
@@ -59,6 +72,10 @@ class GameEnv:
         def __init__(self, game_env: GameEnv, order: int):
             self.game_env = game_env
             self.order = order
+            self.last_combo: Combo = Combo()
+
+        def ready(self):
+            """游戏开始前的初始化操作"""
             self.last_combo: Combo = Combo()
 
         @property
@@ -90,20 +107,10 @@ class GameEnv:
             pass
 
         @abc.abstractmethod
-        def update_msg(self, msgs: Union[Iterator, str]) -> None:
-            """GameEnv通知玩家字符串消息"""
-            pass
-
-        @abc.abstractmethod
-        def update_last_combo(self, is_play: bool) -> None:
-            """GameEnv通知出牌"""
-            pass
-
-        @abc.abstractmethod
-        def update_game_over(self, victor: Union[Tuple[int], int]) -> None:
+        def update_game_over(self, victors: Set[int]) -> None:
             """
             GameEnv通知游戏结束
-            @param victor: 胜利者
+            @param victors: 胜利者
             """
             pass
 
@@ -132,14 +139,19 @@ class GameEnv:
             ) and self.last_combo.is_valid() and self.last_combo > self.game_env.last_combo
 
     def __init__(self):
+
         self.cards: List[np.ndarray] = []
 
         # 玩家数组
-        self._players: List[GameEnv.AbstractPlayer] = []
+        self._players: List[Union[GameEnv.MessageObserver, GameEnv.AbstractPlayer]] = []
+
+        # 消息观察者数组
+        self._msg_observers: List[GameEnv.MessageObserver] = []
+
         self.turn: int
-        self.land_lord: int
+        self.landlord: int
         self._last_combo_owner: int
-        self._former_combo: Combo
+        self._last_combo: Combo
 
     def _init(self):
 
@@ -151,18 +163,21 @@ class GameEnv:
         self.turn: int = 0
 
         # 地主编号
-        self.land_lord: int = -1
+        self.landlord: int = -1
 
         # 上一个combo是谁打的。若上一个combo是自己打的，则出牌；否则跟牌。游戏开始时为地主玩家的id
         self._last_combo_owner: int = -1
 
         # 上一个Combo（除了初始状态，不含打牌过程中产生的PASS）
-        self._former_combo: Combo = Combo()
+        self._last_combo: Combo = Combo()
+
+        for p in self._players:
+            p.ready()
 
     def add_players(self,
-                    p1: GameEnv.AbstractPlayer,
-                    p2: GameEnv.AbstractPlayer,
-                    p3: GameEnv.AbstractPlayer):
+                    p1: Union[GameEnv.MessageObserver, GameEnv.AbstractPlayer],
+                    p2: Union[GameEnv.MessageObserver, GameEnv.AbstractPlayer],
+                    p3: Union[GameEnv.MessageObserver, GameEnv.AbstractPlayer]):
         """
         实例化PlayEnv类后，需要添加玩家
         @param p1: 玩家0
@@ -170,6 +185,9 @@ class GameEnv:
         @param p3: 玩家2
         """
         self._players = [p1, p2, p3]
+        for player in self._players:
+            if issubclass(player.__class__, GameEnv.MessageObserver):
+                self._msg_observers.append(player)
 
     def notify(self, func_name, *args, **kwargs):
         """
@@ -178,8 +196,8 @@ class GameEnv:
         @param args: 传给玩家对象的参数
         @param kwargs: 传给玩家对象的关键字参数
         """
-        for player in self._players:
-            player.__getattribute__(func_name)(*args, **kwargs)
+        for observer in self._msg_observers:
+            observer.__getattribute__(func_name)(*args, **kwargs)
 
     def _start_msg(self):
         yield '斗地主开始！'
@@ -220,7 +238,7 @@ class GameEnv:
         """
         上一个打出的手牌组合（不包括玩家空过）
         """
-        return self._former_combo
+        return self._last_combo
 
     @property
     def hand_p(self) -> int:
@@ -245,18 +263,20 @@ class GameEnv:
         当前打牌的身份与玩家id
         @param player 0：当前玩家， 1：下家， -1：上家
         """
-        return ('[地主' if self.land_lord == (self.turn + player + 3) % 3 else '[农民') + ' 玩家%d] ' % self.turn
+        return ('[地主' if self.landlord == (self.turn + player + 3) % 3 else '[农民') + ' 玩家%d] ' % self.turn
 
     def __call_landlord(self):
 
         self.notify(GameEnv.U_MSG, msgs='进入叫地主环节')
-        while self.land_lord == -1:
+        while self.landlord == -1:
             self.shuffle()
             for player in self._players:
 
                 if player.call_landlord():
-                    self.land_lord = self.turn
-                    self.notify(GameEnv.U_LANDLORD, landlord_id=self.turn)
+                    self.landlord = self.turn
+
+                    for p in self._players:
+                        p.update_landlord(self.landlord)
 
                     self.cards[self.turn] = np.concatenate([self.cards[self.turn], self.cards[3]])
                     self.cards[self.turn].sort()
@@ -265,33 +285,37 @@ class GameEnv:
 
                 self.turn = (self.turn + 1) % 3
 
+    def __notify_game_over(self) -> None:
+        if self.landlord == self.turn:
+            for player in self._players:
+                player.update_game_over({self.landlord})
+        else:
+            farmers = {0, 1, 2}
+            farmers.remove(self.landlord)
+            for player in self._players:
+                player.update_game_over(farmers)
+
     def __round_robin(self):
         while True:
             if self._last_combo_owner == self.turn:
                 self.notify(GameEnv.U_MSG, msgs=self.user_info(0) + '出牌')
                 self._players[self.turn].play()
-                is_play = True
             else:
                 self.notify(
                     GameEnv.U_MSG,
                     msgs=self.user_info(0) + '跟牌(先前的牌由 玩家{} 打出 {})'.format(
-                        self._last_combo_owner, self._former_combo.cards_view)
+                        self._last_combo_owner, self._last_combo.cards_view)
                 )
                 self._players[self.turn].follow()
-                is_play = False
 
             if self._players[self.turn].last_combo.is_not_empty():
                 self._last_combo_owner = self.turn
-                self._former_combo = self._players[self.turn].last_combo
-            self.notify(GameEnv.U_LAST_COMBO, is_play=is_play)
+                self._last_combo = self._players[self.turn].last_combo
+
+            self.notify(GameEnv.U_LAST_COMBO)
 
             if self.cards[self.turn].size == 0:
-                if self.land_lord == self.turn:
-                    self.notify(GameEnv.U_GAME_OVER, victor=self.land_lord)
-                else:
-                    farmers = {0, 1, 2}
-                    farmers.remove(self.land_lord)
-                    self.notify(GameEnv.U_GAME_OVER, victor=farmers)
+                self.__notify_game_over()
                 return
 
             self.turn = (self.turn + 1) % 3

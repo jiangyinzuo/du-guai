@@ -73,22 +73,28 @@ class PlayProvider(AbstractProvider):
         """
         AI出牌时，给AI提供动作的类。
         动作被化简为以下几个：
-        x1：出单，x取【0-4】, 表示出 强行最小、小、中、大、强行最大的单
-        x2：出对，x取【1-3】, 表示出 小、中、大的对
-        x3：出三，x取【1-2】, 表示出最小、较大的三
-        x4：出炸弹, x取【1-3】，表示出小炸弹或大炸弹或王炸
-        x5：出长度为5的顺子，x取【1-2】，表示出较小的或较大的顺子
-        6：出其它连对顺子飞机
-        7: 出4带2
+        【0-4】出单，表示出 强行最小、小、中、大、强行最大的单
+        【5-7】出对，表示出 小、中、大的对
+        【8-9】出三，表示出最小、较大的三
+        【10-12】出炸弹，表示出小炸弹或大炸弹或王炸
+        【13-14】出长度为5的顺子，表示出较小的或较大的顺子
+        【15】出其它连对顺子飞机
+        【16】 出4带2
         """
 
-        MIN_SOLO = 1
-        MAX_SOLO = 41
+        MIN_SOLO = 0
+        MAX_SOLO = 4
 
-        ROCKET = 34
+        BASE_SOLO = 1
+        BASE_PAIR = 5
+        BASE_TRIO = 8
+        BASE_FOUR = 10
+        BASE_FIVE = 13
 
-        OTHER_SEQ_OR_PLANE = 6
-        FOUR_TAKE_TWO = 7
+        ROCKET = 12
+
+        OTHER_SEQ_OR_PLANE = 15
+        FOUR_TAKE_TWO = 16
 
         def __init__(self, outer: PlayProvider):
             self._play_hand: PlayHand
@@ -110,11 +116,11 @@ class PlayProvider(AbstractProvider):
             else:
                 self._action_list: List[int] = []
 
-        def _add_actions(self, actions: List[np.ndarray], max_a: int, kind: int) -> None:
+        def _add_actions(self, actions: List[np.ndarray], total: int, base: int) -> None:
             if actions:
-                for base in range(1, max_a + 1):
-                    if len(actions) >= base:
-                        self._action_list.append(10 * base + kind)
+                for offset in range(total):
+                    if len(actions) >= offset:
+                        self._action_list.append(base + offset)
                     else:
                         return
 
@@ -127,11 +133,11 @@ class PlayProvider(AbstractProvider):
             """
             self._init(play_hand, hand_p, hand_n)
 
-            self._add_actions(play_hand.solos, 3, 1)
-            self._add_actions(play_hand.pairs, 3, 2)
-            self._add_actions(play_hand.trios, 2, 3)
-            self._add_actions(play_hand.bombs, 2, 4)
-            self._add_actions(play_hand.seq_solo5, 2, 5)
+            self._add_actions(play_hand.solos, 3, self.BASE_SOLO)
+            self._add_actions(play_hand.pairs, 3, self.BASE_PAIR)
+            self._add_actions(play_hand.trios, 2, self.BASE_TRIO)
+            self._add_actions(play_hand.bombs, 2, self.BASE_FOUR)
+            self._add_actions(play_hand.seq_solo5, 2, self.BASE_FIVE)
 
             if play_hand.has_rocket:
                 self._action_list.append(self.ROCKET)
@@ -191,7 +197,7 @@ class PlayProvider(AbstractProvider):
             elif value <= 10:
                 return 1
             else:
-                return 3
+                return 2
 
         @classmethod
         def _f_min(cls, actions: List[np.ndarray], t: int = 1) -> int:
@@ -226,7 +232,7 @@ class PlayProvider(AbstractProvider):
             trios_count = len(hand.trios) + len(hand.planes) * 2
             state_vector[4] = _to_le(trios_count, 2)
             if hand.seq_solo5:
-                state_vector[5] = np.max(hand.seq_solo5)
+                state_vector[5] = np.max(hand.seq_solo5) // 5
 
             state_vector[6] = 1 if hand.other_seq or hand.planes else 0
             state_vector[7] = _to_le(len(hand.bombs), 2)
@@ -244,16 +250,16 @@ class FollowProvider(AbstractProvider):
 
     跟牌状态如下：
 
-    状态说明               属性名                 取值范围（均为整数）
-    ------------------------------------------------------------
-    最佳拆牌的delta_q       delta_q 越大越拆得差         [0, 5]
-    玩家身份                player                    [0, 2]
-    上一个牌是谁打的         last_combo_owner           [0, 2]
-    上家手牌数-1            hand_p(大于5都记作5)         [0, 5]
-    下家手牌数-1            hand_n(大于5都记作5)         [0, 5]
-    上一个牌的数量    last_combo_len(大于5都记作5)        [0, 5]
+    状态说明               属性名                                取值范围（均为整数）
+    ---------------------------------------------------------------------------
+    最佳拆牌的delta_q       delta_q 越大越拆得差(大于5都记作5)         [0, 5]
+    玩家身份                player                                 [0, 2]
+    上一个牌是谁打的         last_combo_owner                       [0, 2]
+    上家手牌数-1            hand_p(大于5都记作5)                    [0, 5]
+    下家手牌数-1            hand_n(大于5都记作5)                    [0, 5]
+    上一个牌的数量    last_combo_len(大于5都记作5)                   [0, 5]
 
-    ------------------------------------------------------------
+    ---------------------------------------------------------------------------
 
     AI跟牌时的动作被化简为以下几个：
 
@@ -275,7 +281,6 @@ class FollowProvider(AbstractProvider):
 
     def __init__(self, player_id: int):
         super().__init__(player_id)
-        self.action_list: List[int] = []
         self._follow_decomposer: FollowDecomposer = FollowDecomposer()
 
     def provide(self,
@@ -294,7 +299,7 @@ class FollowProvider(AbstractProvider):
         @param last_combo: 上一个出牌的Combo
         @return state, bombs, good_actions, max_actions, action_list
         """
-        self.action_list: List[int] = []
+
         bombs, min_delta_q, good_actions, max_actions = self._follow_decomposer.get_good_follows(cards, last_combo)
 
         action_vector = [self.PASS]
@@ -315,7 +320,7 @@ class FollowProvider(AbstractProvider):
             elif bombs[0] != 2:
                 action_vector.append(self.LITTLE_BOMB)
 
-        state = [min_delta_q,
+        state = [_to_le(min_delta_q, 5),
                  self.calc_identity(self._player_id),
                  self.calc_identity(last_combo_owner_id),
                  _to_le(hand_p - 1, 5),
