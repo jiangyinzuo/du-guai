@@ -7,9 +7,9 @@ from typing import List
 
 import numpy as np
 
-from ai.decompose import PlayHand
-from ai.provider import PlayProvider, FollowProvider
-from card import CARD_G1, CARD_G0
+from duguai.card import CARD_G1, CARD_G0
+from .decompose import PlayHand
+from .provider import PlayProvider, FollowProvider
 
 PA = PlayProvider.ActionProvider
 

@@ -5,9 +5,9 @@
 """
 from typing import Iterator, Union, Set
 
-from card.cards import cards_view
-from duguai.game.game_env import GameEnv, _remove_last_combo, SPLIT_LINE
-from utils import is_in
+from duguai.card.cards import cards_view
+from duguai.utils import is_in
+from ..game.game_env import GameEnv, _remove_last_combo, SPLIT_LINE
 
 
 class Human(GameEnv.AbstractPlayer, GameEnv.MessageObserver):

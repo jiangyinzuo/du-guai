@@ -11,9 +11,18 @@
 
 #### 启动方式
 
+运行主程序
 ```bash
 cd duguai
 python main.py
+```
+
+运行脚本文件
+```bash
+cd script
+
+# Q-Learning模型训练
+python q_learning.py
 ```
 
 #### 项目目录说明
@@ -35,5 +44,5 @@ python main.py
 [RULES.md](./RULES.md)
 
 #### 训练结果
-训练时长：778秒
-训练次数：10000次
+训练时长：788秒
+训练次数：10100次

@@ -3,15 +3,17 @@
 斗地主程序的入口文件。
 """
 import logging
+import sys
 
-from ai.q_learning import RandomAgent, QLExecuteAgent, load_q_table, PlayQLHelper, FollowQLHelper
-from duguai import mode, test
-from duguai.game.game_env import GameEnv
-from game.human import Human
-from game.robot import Robot
-from logger import log_locals
-
+sys.path.append('..')
 if __name__ == '__main__':
+    from duguai.ai.q_learning import RandomAgent, QLExecuteAgent, load_q_table, PlayQLHelper, FollowQLHelper
+    from duguai.game.human import Human
+    from duguai.game.robot import Robot
+    from duguai.logger import log_locals
+    from duguai import mode, test
+    from duguai.game.game_env import GameEnv
+
     game_env = GameEnv()
     try:
         if test == 'on':

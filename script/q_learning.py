@@ -1,18 +1,19 @@
 # -*- coding: utf-8 -*-
-
 import logging
 import sys
-from getopt import getopt, GetoptError
-from time import time
 
-from ai.q_learning import load_q_table, save_q_table
-from duguai import mode
-from duguai.ai.q_learning import PlayQLHelper, FollowQLHelper, QLTrainingAgent
-from game.game_env import GameEnv
-from game.robot import Robot
-from logger import log_locals
+sys.path.append('..')
 
 if __name__ == '__main__':
+    from getopt import getopt, GetoptError
+    from time import time
+
+    from duguai import mode
+    from duguai.ai.q_learning import load_q_table, save_q_table, PlayQLHelper, FollowQLHelper, QLTrainingAgent
+    from duguai.game.game_env import GameEnv
+    from duguai.game.robot import Robot
+    from duguai.logger import log_locals
+
     train_times: int = 10
     try:
         opts, args = getopt(sys.argv[1:], 't:')

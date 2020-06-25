@@ -9,8 +9,8 @@ from typing import List, Tuple
 
 import numpy as np
 
-from ai.decompose import PlayDecomposer, FollowDecomposer, PlayHand
-from card.combo import Combo
+from duguai.ai.decompose import PlayDecomposer, FollowDecomposer, PlayHand
+from duguai.card.combo import Combo
 
 
 def _to_le(number: int, ceil: int) -> int:

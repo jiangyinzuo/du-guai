@@ -9,9 +9,8 @@ from typing import Union, List
 
 import numpy as np
 
-from card import *
-from card.cards import cards_view
-from duguai.card.cards import card_to_di
+from . import *
+from .cards import cards_view, card_to_di
 
 
 def _is_consequent(seq, min_len: int) -> bool:

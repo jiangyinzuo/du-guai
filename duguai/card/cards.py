@@ -7,8 +7,8 @@ from typing import Tuple, List, Union
 
 import numpy as np
 
-from card import *
-from card import CARD_VIEW
+from . import *
+from . import CARD_VIEW
 
 
 def has_rocket(card: Union[np.ndarray, List[int]]) -> bool:

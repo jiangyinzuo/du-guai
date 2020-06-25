@@ -11,10 +11,10 @@ from typing import List, Iterator, Union, Set
 
 import numpy as np
 
-from card.cards import cards_view
-from card.combo import Combo
 from duguai import mode
-from utils import is_in
+from ..card.cards import cards_view
+from ..card.combo import Combo
+from ..utils import is_in
 
 SPLIT_LINE = '----------------------------------------'
 

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from card.combo import *
+from duguai.card.combo import *
 
 
 def test_cards():
@@ -10,10 +10,10 @@ def test_cards():
     assert c1._bit_info == INVALID_BIT
 
     c1.cards = np.array([1, 1, 1, 4])
-    assert c1._bit_info == 11301
+    assert c1._bit_info == 101301
 
     c1.cards_view = '5 5 2 2 2'
-    assert c1._bit_info == 21313
+    assert c1._bit_info == 201313
 
 
 def test_cmp_cards():

@@ -13,7 +13,7 @@ from typing import List, Union, Optional, Tuple
 
 import numpy as np
 
-from game.robot import Robot
+from duguai.game.robot import Robot
 
 
 class RandomAgent(Robot.Agent):

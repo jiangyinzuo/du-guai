@@ -11,9 +11,9 @@ from collections import defaultdict
 from copy import deepcopy
 from typing import Iterable
 
-from card.cards import *
-from card.cards import card_lt2, card_split
-from card.combo import Combo
+from duguai.card.cards import *
+from duguai.card.cards import card_lt2, card_split
+from duguai.card.combo import Combo
 
 """顺子/连对/飞机/最小的长度"""
 KIND_TO_MIN_LEN = {1: 5, 2: 3, 3: 2}

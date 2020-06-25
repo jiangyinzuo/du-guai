@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
+import numpy as np
 
-from duguai.ai.decompose import *
+from duguai.ai.decompose import FollowDecomposer, PlayDecomposer
+from duguai.card import CARD_2, CARD_G0, CARD_G1
+from duguai.card.combo import Combo
 
 
 def test_card2():

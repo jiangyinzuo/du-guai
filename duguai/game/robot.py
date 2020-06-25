@@ -11,11 +11,11 @@ from typing import Union, List, Set
 
 import numpy as np
 
-from ai import process
-from ai.call_landlord import get_svc, z_score
-from ai.executor import execute_play, execute_follow
-from ai.provider import PlayProvider, FollowProvider
-from game.game_env import GameEnv, _remove_last_combo
+from duguai.ai import process
+from duguai.ai.call_landlord import get_svc, z_score
+from duguai.ai.executor import execute_play, execute_follow
+from duguai.ai.provider import PlayProvider, FollowProvider
+from .game_env import GameEnv, _remove_last_combo
 
 
 class Robot(GameEnv.AbstractPlayer):

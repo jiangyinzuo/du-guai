@@ -7,7 +7,7 @@
 """
 from sklearn.svm import LinearSVC
 
-from card.combo import *
+from duguai.card.combo import *
 
 
 def has_g(raw_data: np.ndarray) -> int:
