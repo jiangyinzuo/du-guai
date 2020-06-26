@@ -10,14 +10,14 @@ from abc import ABCMeta
 from collections import defaultdict
 from copy import deepcopy
 from functools import cmp_to_key
-from typing import Iterable, Optional
+from typing import Optional
 
 from duguai.card.cards import *
 from duguai.card.cards import card_lt2, card_split
 from duguai.card.combo import Combo
 
-"""顺子/连对/飞机/最小的长度"""
-KIND_TO_MIN_LEN = {1: 5, 2: 3, 3: 2}
+"""顺子/连对/最小的长度"""
+KIND_TO_MIN_LEN = {1: 5, 2: 3}
 MAX_Q = 10000
 
 
@@ -38,19 +38,8 @@ class AbstractDecomposer(metaclass=ABCMeta):
         q = d(next_state) + len(a)
     """
 
-    @staticmethod
-    def __calc_trios_decompose_value(d_value: int, solo: int, pairs: int, trios: int, card_before: np.ndarray,
-                                     action: np.ndarray) -> int:
-        if solo + pairs * 2 >= trios:
-            d_value = max(d_value, trios * 4)
-        if pairs >= trios:
-            d_value = max(d_value, trios * 5)
-        if len(action) == 1 and sum(card_before == action[0]) == 1:
-            d_value += 1
-        return d_value
-
     @classmethod
-    def decompose_value(cls, card_before: np.ndarray, card_after: np.ndarray, action: np.ndarray) -> int:
+    def decompose_value(cls, card_after: np.ndarray) -> int:
         """
         获取一副牌的分解值
         """
@@ -65,27 +54,11 @@ class AbstractDecomposer(metaclass=ABCMeta):
             if max_len >= KIND_TO_MIN_LEN[t]:
                 d_value = max(d_value, t * max_len)
 
-        # 3连的个数
-        trios = max(len(i) for i in card_split(di[3]))
-
-        # 单的个数, 对子的个数
-        solo, pairs = len(di[1]) + len(di[2]) * 2, len(di[2])
-
-        # 3带1，3带2，飞机
-        if trios:
-            d_value = cls.__calc_trios_decompose_value(
-                d_value, solo, pairs, trios, card_before, action
-            )
-        # 4带2
-        if len(di[4]):
-            d_value = max(d_value, 4 + (2 if solo >= 2 or pairs >= 1 else 0))
-            d_value = max(d_value, 4 + (4 if pairs >= 2 else 0))
-
         return d_value
 
-    def __init__(self):
-        # 将要输出的好的牌型列表，每次调用前清空
-        self._output: List[np.ndarray] = []
+    @classmethod
+    def _delta_q(cls, _max_q, _q):
+        return (_max_q - _q) if _max_q - _q < 1000 else (_max_q - MAX_Q + 1 - _q)
 
     def _calc_q(self, lt2_state: np.ndarray, actions: np.ndarray[np.ndarray]) -> np.ndarray:
         """对每一种状态-动作计算其Q"""
@@ -93,21 +66,15 @@ class AbstractDecomposer(metaclass=ABCMeta):
         for a in actions:
 
             reward: int = 0
-            # 拆炸弹的惩罚值，保证在 5 5 5 5 6的情况下拆出炸弹
+            # 拆炸弹的惩罚值，保证在 5 5 5 5 6的情况下拆出炸弹而非三带一
             for card in a:
                 if np.sum(lt2_state == card) == 4 and len(a) < 4:
                     reward = -1
                     break
-            else:
-                # 3带M加上M的长度（视为 三/飞机 带对子）
-                combo = Combo()
-                combo.cards = a
-                if combo.main_kind == 3:
-                    reward = combo.seq_len * 2
 
             next_state: np.ndarray = get_next_state(lt2_state, a)
             if next_state.size > 0:
-                d_value = self.decompose_value(lt2_state, next_state, a)
+                d_value = self.decompose_value(next_state)
                 result.append(d_value + reward + len(a))
             else:
                 # 该动作打完就没牌了，故d值为最大值
@@ -117,7 +84,6 @@ class AbstractDecomposer(metaclass=ABCMeta):
     def _eval_actions(self,
                       func,
                       lt2_state: np.ndarray,
-                      all_actions: bool,
                       **kwargs) -> Tuple[np.ndarray, np.ndarray]:
         actions = np.array(
             func(lt2_state, kwargs['length']) if 'card_list' not in kwargs.keys() else func(kwargs['card_list'],
@@ -127,64 +93,58 @@ class AbstractDecomposer(metaclass=ABCMeta):
         # 计算lt2_state下每一个action的q值
         q_list: np.ndarray = self._calc_q(lt2_state, actions)
         if len(q_list) == 0:
-            return np.array([]), np.array([])
+            return np.array([], dtype=int), np.array([], dtype=int)
 
-        # 若需要所有动作及Q值，则直接返回
-        if all_actions:
-            return actions, q_list
-        else:
-            max_q = np.max(q_list)
-            args_res: np.ndarray = q_list == max_q
-            return actions[args_res], q_list[args_res]
+        return actions, q_list
 
-    def _process_state(self, state: np.ndarray):
-        self._state = np.array(state)
+    def _process_card(self, card: np.ndarray):
 
         # 将手牌分解成不连续的部分
-        self._lt2_cards, eq2_cards, self._ghosts = card_lt2_two_g(self._state)
+        self._lt2_cards, eq2_cards, self._ghosts = card_lt2_two_g(card)
         self._lt2_states: List[np.ndarray] = card_split(self._lt2_cards)
         self.card2_count: int = len(eq2_cards)
 
-        # 方法将输出的列表，每次调用方法前清空列表
-        self._output.clear()
-
-    @staticmethod
-    def _max_q_actions(good_actions, q_lists, delta: int = 0, max_q: int = 0) -> np.ndarray:
-        if len(q_lists) == 0:
-            return np.array([])
-        good_actions: np.ndarray = np.array(good_actions)
-        return np.array(good_actions[np.array(q_lists) >= max(max_q, np.max(q_lists)) - delta])
-
-    def _get_good_actions_and_q_lists(self, lt2_state: np.ndarray, all_actions: bool) \
-            -> Tuple[List[np.ndarray], List[int]]:
+    def _get_all_actions_and_q_lists(self, lt2_state: np.ndarray) -> int:
         """获取一个lt2_state下所有的actions及其对应的q_lists"""
 
-        good_actions: list = []
-        q_lists: list = []
         di, max_count, max_card_value = card_to_suffix_di(lt2_state)
 
-        # 拆单、对、三、炸弹
-        for kind in range(1, max_count + 1):
-            good_action, q_list = self._eval_actions(_get_single_actions,
-                                                     lt2_state,
-                                                     all_actions,
-                                                     length=kind)
-            good_actions.extend(good_action)
-            q_lists.extend(q_list)
+        # solo pair trio bomb plane other
+        self._actions = [[], [], [], [], [], []]
+        self._q_lists = [np.array([], dtype=int), np.array([], dtype=int), np.array([], dtype=int),
+                         np.array([], dtype=int), np.array([], dtype=int), np.array([], dtype=int)]
 
-        # 拆出顺子、连对、飞机等
+        # solo pair trio bomb
+        for i in range(1, 5):
+            self._actions[i - 1], self._q_lists[i - 1] = self._eval_actions(_get_single_actions, lt2_state, length=i)
+
+        # plane
+        for length in range(3, len(di[3]) + 1):
+            seq_actions, seq_q_list = self._eval_actions(_get_seq_actions,
+                                                         lt2_state,
+                                                         card_list=di[3],
+                                                         kind=3,
+                                                         length=length)
+            self._actions[4].extend(seq_actions)
+            self._q_lists[4] = np.concatenate([self._q_lists[4], seq_q_list])
+
+        # 拆出顺子、连对
         for k, min_len in KIND_TO_MIN_LEN.items():
             card_list = di[k]
             for length in range(min_len, len(card_list) + 1):
-                good_action, q_list = self._eval_actions(_get_seq_actions,
-                                                         lt2_state,
-                                                         all_actions,
-                                                         card_list=card_list,
-                                                         kind=k,
-                                                         length=length)
-                good_actions.extend(good_action)
-                q_lists.extend(q_list)
-        return good_actions, q_lists
+                seq_actions, seq_q_list = self._eval_actions(_get_seq_actions,
+                                                             lt2_state,
+                                                             card_list=card_list,
+                                                             kind=k,
+                                                             length=length)
+                self._actions[5].extend(seq_actions)
+                self._q_lists[5] = np.concatenate([self._q_lists[5], seq_q_list])
+
+        max_q = 0
+        for q_list in self._q_lists:
+            if q_list.size:
+                max_q = max(np.max(q_list), max_q)
+        return max_q
 
 
 class FollowDecomposer(AbstractDecomposer):
@@ -193,7 +153,7 @@ class FollowDecomposer(AbstractDecomposer):
     """
 
     def __init__(self):
-        super().__init__()
+        self._output: Optional[List[np.ndarray]] = None
 
         # 存放带牌的列表
         self._take_lists: Optional[Dict[int, List[np.ndarray]]] = None
@@ -302,10 +262,6 @@ class FollowDecomposer(AbstractDecomposer):
             # 得到最大的main_takes
             self._max_main_takes = self.__merge_takes_to_main_seq(0, self._max_combo.cards, take_count)[1]
 
-    @classmethod
-    def _delta_q(cls, _max_q, _q):
-        return (_max_q - _q) if _max_q - _q < 1000 else (_max_q - MAX_Q + 1 - _q)
-
     def _update_main_lists_and_find_max(self, a: np.ndarray, q: int, max_q: int) -> None:
         """在action有效的情况下加入到主列表，并更新最大值"""
         main_kind = self._last_combo.main_kind
@@ -328,27 +284,33 @@ class FollowDecomposer(AbstractDecomposer):
         self._main_take_lists[min_delta_q].sort(key=MOST_VALUE_CMP)
         return min_delta_q, self._main_take_lists[min_delta_q]
 
+    def _append_takes(self, length: int, kind: int, max_q):
+        for a, q in zip(self._actions[kind - 1], self._q_lists[kind - 1]):
+            self._take_lists[self._delta_q(max_q, q)].append(a[:length])
+
+    def _add_valid_lt2_actions(self):
+        for lt2_state in self._lt2_states:
+            if lt2_state.size > 0:
+                max_q: int = super(FollowDecomposer, self)._get_all_actions_and_q_lists(lt2_state)
+
+                # 把单或者对加入_take_lists，对子可以视为2个单加入take列表
+                if self._take_kind == 1:
+                    self._append_takes(1, 1, max_q)
+                    self._append_takes(1, 2, max_q)
+                elif self._take_kind == 2:
+                    self._append_takes(2, 2, max_q)
+
+                for actions, q_list in zip(self._actions, self._q_lists):
+                    for a, q in zip(actions, q_list):
+                        # 将合法的action加入到_main_lists，同时更新最大的main_kind
+                        self._update_main_lists_and_find_max(a, q, max_q)
+
     def _thieve_valid_actions(self) -> Tuple[int, List[np.ndarray]]:
         """根据last combo的限制，筛选出有效且较好的动作"""
 
         self._add_valid_card2()
         self._add_valid_ghost()
-
-        # -------------- 筛选出符合条件的main_kind和take_kind ------------------
-        for lt2_state in self._lt2_states:
-            if lt2_state.size > 0:
-                actions, q_lists = super(FollowDecomposer, self)._get_good_actions_and_q_lists(lt2_state, True)
-                max_q: int = max(q_lists)
-                for a, q in zip(actions, q_lists):
-
-                    # 把单或者对加入_take_lists，对子可以视为2个单加入take列表
-                    if len(a) == self._take_kind or len(a) == 2 and self._take_kind == 1:
-                        self._take_lists[self._delta_q(max_q, q)].append(a[:self._take_kind])
-
-                    # 将合法的action加入到_main_lists，同事更新最大的main_kind
-                    self._update_main_lists_and_find_max(a, q, max_q)
-
-        # -------------------------------------------------------------------
+        self._add_valid_lt2_actions()
 
         if not self._main_lists:
             return 0, []
@@ -367,9 +329,11 @@ class FollowDecomposer(AbstractDecomposer):
         # 初始化，key代表max_q - q，key越小拆得越好，越要优先选择
         self._take_lists: Dict[int, List[np.ndarray]] = defaultdict(list)
         self._main_lists: Dict[int, List[np.ndarray]] = defaultdict(list)
+        self._output = []
 
         # max_combo仅保留主要部分，忽略带的部分
         self._max_combo = deepcopy(last_combo)
+        self._max_main_takes = self._max_combo.cards
         self._last_combo = last_combo
 
         self._main_kind = self._max_combo.main_kind
@@ -386,7 +350,7 @@ class FollowDecomposer(AbstractDecomposer):
         if last_combo.is_rocket():
             return [], 0, [], np.array([], dtype=int)
 
-        self._process_state(state)
+        self._process_card(state)
         self._init(last_combo)
 
         min_delta_q, self._output = self._thieve_valid_actions()
@@ -404,20 +368,14 @@ class PlayHand:
     出牌时，根据d_actions对手牌进行进一步分类
     """
 
-    def __init__(self, cards: np.ndarray, d_actions: List[np.ndarray]):
+    def __init__(self, min_solo: int, max_solo: int):
         """
         初始化Hand类
-        @param cards: 玩家的初始手牌
-        @param d_actions: 经过初步分解后的行动。
         @see PlayDecomposer
         """
-        self._cards: np.ndarray = cards
+        # solo pair trio bomb
+        self._singles: List[List[np.ndarray]] = [[], [], [], []]
 
-        self._solos: List[np.ndarray] = []
-        self._pairs: List[np.ndarray] = []
-
-        self._trios: List[np.ndarray] = []
-        self._bombs: List[np.ndarray] = []
         self._planes: List[np.ndarray] = []
 
         self._trios_take: List[np.ndarray] = []
@@ -428,42 +386,35 @@ class PlayHand:
         self._other_seq: List[np.ndarray] = []
         self._has_rocket: bool = False
 
-        self._min_solo: int = np.min(cards)
-        self._max_solo: int = np.max(cards)
+        self._min_solo: int = min_solo
+        self._max_solo: int = max_solo
 
-        self.__part_action(d_actions)
+    def add_to_hand(self, card_lists: List[Dict[int, List[np.ndarray]]]):
+        """将各种类型牌加入到PlayHand中"""
+        for i in range(4):
+            if card_lists[i].keys():
+                min_delta_q = min(card_lists[i].keys())
+                self._singles[i] = card_lists[i][min_delta_q]
+                self._singles[i].sort(key=MAX_VALUE_CMP)
 
-        self.merge_main_takes(self._planes, self._planes_take)
-        self.merge_main_takes(self._trios, self._trios_take)
-        self.merge_main_takes(self._bombs, self._bombs_take)
+        # plane
+        if card_lists[4].keys():
+            min_delta_q = min(card_lists[4].keys())
+            self._planes = card_lists[4][min_delta_q]
+            self._planes.sort(key=MAX_VALUE_CMP)
 
-    def __part_action(self, d_actions: List[np.ndarray]) -> None:
-        """对d_action进行初步分类"""
+        if card_lists[5].keys():
+            min_delta_q = min(card_lists[5].keys())
+            for action in card_lists[5][min_delta_q]:
+                if action.size == 5:
+                    self._seq_solo5.append(action)
+                else:
+                    self._other_seq.append(action)
+            self._seq_solo5.sort(key=MAX_VALUE_CMP)
 
-        for a in d_actions:
-
-            # 含王炸
-            if len(a) == 2 and a[-1] == CARD_G1:
-                self._has_rocket = True
-
-            # 分类单牌
-            elif 1 <= len(a) <= 4:
-                (self.solos, self.pairs, self.trios, self.bombs)[len(a) - 1].append(a)
-
-            # 分类长度为5的单顺
-            elif len(a) == 5 and a[0] == a[1] - 1 == a[3] - 3 == a[4] - 4:
-                self._seq_solo5.append(a)
-
-            # 分类飞机
-            elif len(a) % 3 == 0 and a[0] == a[2] and a[0] != a[3]:
-                self._planes.append(a)
-
-            # 分类其它顺子
-            else:
-                self.other_seq.append(a)
-
-        for combos in (self._solos, self._pairs, self._trios, self._bombs, self._seq_solo5):
-            combos.sort(key=MAX_VALUE_CMP)
+        self._merge_main_takes(self._planes, self._planes_take)
+        self._merge_main_takes(self._singles[2], self._trios_take)
+        self._merge_main_takes(self._singles[3], self._bombs_take)
 
     @staticmethod
     def _choose_takes(take_list: List[np.ndarray], main_part: np.ndarray, take_count: int, split_pair: bool = False):
@@ -474,7 +425,7 @@ class PlayHand:
 
         return main_part
 
-    def merge_main_takes(self, main_list: List[np.ndarray], extended_target: List[np.ndarray]):
+    def _merge_main_takes(self, main_list: List[np.ndarray], extended_target: List[np.ndarray]):
         """
         合并主要部分与带的牌
         """
@@ -482,8 +433,8 @@ class PlayHand:
         for main_part in main_list:
 
             # 防止main part带上自己的部分，例如 7 7 7不能带7
-            temp_pairs: List[np.ndarray] = [i for i in self._pairs if i[0] not in np.unique(main_part)]
-            temp_solos: List[np.ndarray] = [i for i in self._solos if
+            temp_pairs: List[np.ndarray] = [i for i in self._singles[1] if i[0] not in np.unique(main_part)]
+            temp_solos: List[np.ndarray] = [i for i in self._singles[0] if
                                             i[0] not in np.unique(main_part) and i[0] not in np.unique(temp_pairs)]
 
             take_count: int = math.ceil(main_part.size / 3)
@@ -510,24 +461,19 @@ class PlayHand:
         extended_target.sort(key=MOST_VALUE_CMP)
 
     @property
-    def cards(self) -> np.ndarray:
-        """玩家原始的卡牌"""
-        return self._cards
-
-    @property
     def solos(self) -> List[np.ndarray]:
         """单"""
-        return self._solos
+        return self._singles[0]
 
     @property
     def pairs(self) -> List[np.ndarray]:
         """对"""
-        return self._pairs
+        return self._singles[1]
 
     @property
     def trios(self) -> List[np.ndarray]:
         """三"""
-        return self._trios
+        return self._singles[2]
 
     @property
     def trios_take(self):
@@ -537,7 +483,7 @@ class PlayHand:
     @property
     def bombs(self) -> List[np.ndarray]:
         """炸弹"""
-        return self._bombs
+        return self._singles[3]
 
     @property
     def bombs_take(self) -> List[np.ndarray]:
@@ -585,16 +531,36 @@ class PlayHand:
 
 class PlayDecomposer(AbstractDecomposer):
     """
-    出牌拆牌器
+    基于贪心法的斗地主出牌时的拆牌算法。
+    出牌时仅考虑强行拆最大和最小的单牌。其余牌型均按照最佳拆牌给出。
+
+    定义c为一张牌，由斗地主规则可知，c ∈ [1, 15] ∩ Z+。
+    定义s表示当前玩家拥有的所有牌的序列，s = (c1, c2, ..., ci)。
+    定义a为一次符合斗地主规则的出牌的序列，a = (c1, c2, ..., ci)。
+
+    记s下满足规则的所有拆牌动作的集合为A_s，a∈A_s。
+
+    用函数D(a)来计算a拆牌的好坏。D(a)定义如下：
+                D(a) = len(a) + max( max(len(a')) , 1) - 拆炸弹的数量
+
+    其中定义域a∈A，值域D(a)∈Z+, a' ∈ s - a
+    D(a)越大，拆牌越合理。
+
+    算法如下:
+    1. 将s分成连续的若干段、二和大小王，例如(1,1,2,2,5,5,7,10,13,14)分成(1,1,2,2) (5,5,) (7) (10) (13) (14)
+    2. 将大小王和二加入到最佳拆牌序列A‘中
+    3. 对每一段序列si，计算不带牌的动作a的 D(a)
+    4. 合并主牌和带牌的D(a)
+    5. 输出argmax(D(a))
     """
 
-    def _get_lt2_good_actions(self, lt2_state: np.ndarray) -> Iterable:
-        """
-        获取小于2的牌中当前状态下较好的拆牌
-        """
-        actions, q_lists = super(PlayDecomposer, self)._get_good_actions_and_q_lists(lt2_state, False)
+    def __init__(self):
+        self.cards_q_maps_list: Optional[List[Dict[int, List[np.ndarray]]]] = None
 
-        return self._max_q_actions(actions, q_lists)
+    def _map_actions(self, actions, q_list, max_q: int, idx: int):
+        for a, q in zip(actions, q_list):
+            if max_q == q:
+                self.cards_q_maps_list[idx][max_q - q].append(a)
 
     def get_good_plays(self, cards: np.ndarray) -> PlayHand:
         """
@@ -602,17 +568,36 @@ class PlayDecomposer(AbstractDecomposer):
         @param cards: 当前手牌。
         @return: 包含所有好的出牌类型的数组
         """
-        self._process_state(cards)
+        self._process_card(cards)
+        self.cards_q_maps_list = [defaultdict(list), defaultdict(list),
+                                  defaultdict(list), defaultdict(list),
+                                  defaultdict(list), defaultdict(list)]
 
-        if self.card2_count:
-            self._output.append(np.array([CARD_2] * self.card2_count))
-        if self._ghosts.size > 0:
-            self._output.append(self._ghosts)
+        play_hand = PlayHand(np.min(cards), np.max(cards))
 
         for lt2_state in self._lt2_states:
-            self._output.extend(self._get_lt2_good_actions(lt2_state))
+            if lt2_state.size > 0:
+                max_q = self._get_all_actions_and_q_lists(lt2_state)
+                i = 0
+                for actions, q_list in zip(self._actions, self._q_lists):
+                    self._map_actions(actions, q_list, max_q, i)
+                    i += 1
 
-        return PlayHand(cards, self._output)
+        if self.cards_q_maps_list[0].keys() and self.cards_q_maps_list[1].keys():
+            min_key = min(self.cards_q_maps_list[0].keys())
+            min_key2 = min(self.cards_q_maps_list[1].keys())
+            self.cards_q_maps_list[0][min_key] = [i for i in self.cards_q_maps_list[0][min_key] if
+                                                  i[0] not in np.unique(self.cards_q_maps_list[1][min_key2])]
+        if self.card2_count:
+            self.cards_q_maps_list[self.card2_count - 1][0].append(np.array([CARD_2] * self.card2_count))
+
+        if self._ghosts.size == 2:
+            play_hand._has_rocket = True
+        elif self._ghosts.size == 1:
+            self.cards_q_maps_list[0][0].append(self._ghosts)
+
+        play_hand.add_to_hand(self.cards_q_maps_list)
+        return play_hand
 
 
 def get_next_state(state: np.ndarray, action: np.ndarray) -> np.ndarray:

@@ -21,7 +21,7 @@ if __name__ == '__main__':
         follow_q_table = load_q_table('../script/follow_q_table.npy', FollowQLHelper.STATE_LEN,
                                       FollowQLHelper.ACTION_LEN)
         if test == 'on':
-            robot0 = Robot(game_env, 0, RandomAgent())
+            robot0 = Robot(game_env, 0, RandomAgent)
             robot1 = Robot(game_env, 1, QLExecuteAgent(play_q_table, follow_q_table))
             robot2 = Robot(game_env, 2, QLExecuteAgent(play_q_table, follow_q_table))
             game_env.add_players(robot0, robot1, robot2)
