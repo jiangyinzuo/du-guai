@@ -8,7 +8,7 @@ import sys
 sys.path.append('..')
 
 if __name__ == '__main__':
-    from duguai.ai.q_learning import RandomAgent, QLExecuteAgent, load_q_table, PlayQLHelper, FollowQLHelper
+    from duguai.ai.q_learning import QLExecuteAgent, load_q_table, PlayQLHelper, FollowQLHelper
     from duguai.game.human import Human
     from duguai.game.robot import Robot
     from duguai.logger import log_locals
@@ -21,7 +21,7 @@ if __name__ == '__main__':
         follow_q_table = load_q_table('../script/follow_q_table.npy', FollowQLHelper.STATE_LEN,
                                       FollowQLHelper.ACTION_LEN)
         if test == 'on':
-            robot0 = Robot(game_env, 0, RandomAgent)
+            robot0 = Robot(game_env, 0, QLExecuteAgent(play_q_table, follow_q_table))
             robot1 = Robot(game_env, 1, QLExecuteAgent(play_q_table, follow_q_table))
             robot2 = Robot(game_env, 2, QLExecuteAgent(play_q_table, follow_q_table))
             game_env.add_players(robot0, robot1, robot2)

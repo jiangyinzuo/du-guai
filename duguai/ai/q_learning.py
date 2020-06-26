@@ -13,8 +13,8 @@ from typing import List, Union, Optional, Tuple
 
 import numpy as np
 
-from ai.provider import FollowProvider, PlayProvider
 from duguai import mode
+from duguai.ai.provider import FollowProvider, PlayProvider
 from duguai.game.robot import Robot
 
 

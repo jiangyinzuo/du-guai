@@ -326,10 +326,10 @@ class FollowProvider(AbstractProvider):
             # 如果有王炸，王炸在bombs列表的第一个
             if len(bombs[0]) == 2:
                 action_vector.append(self.ROCKET)
-            if len(bombs[0]) > 1:
-                action_vector.extend((self.LITTLE_BOMB, self.BIG_BOMB))
-            elif bombs[0] != 2:
+            else:
                 action_vector.append(self.LITTLE_BOMB)
+            if len(bombs[0]) > 1:
+                action_vector.append(self.BIG_BOMB)
 
         state = [_to_le(min_delta_q, 5),
                  self.calc_identity(self._player_id),
