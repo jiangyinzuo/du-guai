@@ -53,3 +53,17 @@ def test_sorted_play():
 
     action = sample(action_list, 1)[0]
     print(PlayProvider.ActionProvider.ACTION_VIEW[action], execute_play(play_hand, action))
+
+
+def test_bomb():
+    follow_provider = FollowProvider(1)
+    follow_provider.add_landlord_id(2)
+    combo = Combo()
+    combo.cards = [1]
+    res = follow_provider.provide(0, 5, 5, np.array([3, 3, 3, 3, 4, 4, 4, 4, 14, 15]), combo)
+    print(res)
+
+    play_provider = PlayProvider(1)
+    play_provider.add_landlord_id(2)
+    res = play_provider.provide(np.array([3, 3, 3, 3, 4, 4, 4, 4, 14, 15]), 10, 10)
+    print(res)

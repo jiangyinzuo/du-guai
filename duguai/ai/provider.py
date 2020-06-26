@@ -294,6 +294,20 @@ class FollowProvider(AbstractProvider):
         super().__init__(player_id)
         self._follow_decomposer: FollowDecomposer = FollowDecomposer()
 
+    def __add_bomb(self, action_vector, bombs):
+        if bombs:
+            # 如果有王炸，王炸在bombs列表的第一个
+            if len(bombs[0]) == 2:
+                action_vector.append(self.ROCKET)
+                if len(bombs) > 1:
+                    action_vector.append(self.LITTLE_BOMB)
+                if len(bombs) > 2:
+                    action_vector.append(self.BIG_BOMB)
+            else:
+                action_vector.append(self.LITTLE_BOMB)
+                if len(bombs) > 1:
+                    action_vector.append(self.BIG_BOMB)
+
     def provide(self,
                 last_combo_owner_id: int,
                 hand_p: int,
@@ -322,14 +336,8 @@ class FollowProvider(AbstractProvider):
                     break
         if max_actions.size > 0:
             action_vector.append(self.FORCE_MAX)
-        if bombs:
-            # 如果有王炸，王炸在bombs列表的第一个
-            if len(bombs[0]) == 2:
-                action_vector.append(self.ROCKET)
-            else:
-                action_vector.append(self.LITTLE_BOMB)
-            if len(bombs[0]) > 1:
-                action_vector.append(self.BIG_BOMB)
+
+        self.__add_bomb(action_vector, bombs)
 
         state = [_to_le(min_delta_q, 5),
                  self.calc_identity(self._player_id),
