@@ -13,6 +13,8 @@ from typing import List, Union, Optional, Tuple
 
 import numpy as np
 
+from ai.provider import FollowProvider, PlayProvider
+from duguai import mode
 from duguai.game.robot import Robot
 
 
@@ -59,6 +61,14 @@ class QLExecuteAgent(AbstractQLAgent):
         @return: Q值最大的动作
         """
         q_table1, state1 = self._get_q_table1_state1(state_vector1)
+        if mode == 'debug':
+            if len(state_vector1) == PlayQLHelper.STATE_VECTOR_SIZE:
+                for a in actions1:
+                    logging.info(PlayProvider.ActionProvider.ACTION_VIEW[a] + ' ' + str(q_table1[state1, a]))
+            else:
+                for a in actions1:
+                    logging.info(FollowProvider.ACTION_VIEW[a] + ' ' + str(q_table1[state1, a]))
+            logging.info('-------------------------------')
         return actions1[int(np.argmax(q_table1[state1, actions1]))]
 
 
@@ -78,6 +88,7 @@ class QLTrainingAgent(AbstractQLAgent):
 
         self.action0: int = -1
         self.state0: int = -1
+        self.reward0: int = -1
         self.q_table0: Optional[np.ndarray] = None
 
     def _epsilon_greedy(self, q_table: np.ndarray, actions: List[int], state: int) -> int:
@@ -94,7 +105,7 @@ class QLTrainingAgent(AbstractQLAgent):
         """使用Q-Learning算法更新Q表"""
         q_value0 = self.q_table0[self.state0, self.action0]
         self.q_table0[self.state0, self.action0] += self._alpha * (
-                -1 + self._gamma * (np.max(q_table1[state1, actions1]) - q_value0)
+                self.reward0 + self._gamma * (np.max(q_table1[state1, actions1]) - q_value0)
         )
 
     def update_game_over(self, reward: int) -> None:
@@ -116,6 +127,7 @@ class QLTrainingAgent(AbstractQLAgent):
         self.q_table0 = q_table1
         self.state0 = state1
         self.action0 = self._epsilon_greedy(q_table1, actions1, state1)
+        self.reward0 = -1 if self.action0 != FollowProvider.PASS else (-1 - len(actions1) * 0.1)
         return self.action0
 
 

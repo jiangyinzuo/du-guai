@@ -96,6 +96,13 @@ class PlayProvider(AbstractProvider):
         OTHER_SEQ_OR_PLANE = 15
         FOUR_TAKE_TWO = 16
 
+        ACTION_VIEW = ('强拆最小单牌', '小单', '中单', '大单', '强行最大单',
+                       '小对', '中对', '大对',
+                       '小三', '大三',
+                       '小炸弹', '大炸弹', '王炸',
+                       '小长5单顺', '大长5单顺',
+                       '其它顺子/连对/飞机', '四带二')
+
         def __init__(self, outer: PlayProvider):
             self._play_hand: PlayHand
             self._action_list: List[int]
@@ -278,6 +285,10 @@ class FollowProvider(AbstractProvider):
     ROCKET = 8
 
     STATE_LEN = 6
+
+    ACTION_VIEW = (
+        '空过', '跟最小', '跟较小', '跟较大', '跟最大', '强行拆牌跟最大', '小炸弹', '大炸弹', '王炸'
+    )
 
     def __init__(self, player_id: int):
         super().__init__(player_id)

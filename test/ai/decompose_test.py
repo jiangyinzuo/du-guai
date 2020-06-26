@@ -91,6 +91,10 @@ def test_trio_with_one():
 
 def test_trio():
     decomposer = PlayDecomposer()
+    combo = Combo()
+    combo.cards_view = '3 4 4 5 6 6 6 7 7 7 8 8 9 9 10 10 J Q B G'
+    print(decomposer.get_good_plays(combo.cards))
+
     print(decomposer.get_good_plays(np.array([4, 4, 4, 5, 6, 6, 7, 7])))
     print(decomposer.get_good_plays(np.array([1, 1, 2, 3, 4, 5, 6, 9, 9, 9, 10, 10, 10, 11, 11, 11])))
 

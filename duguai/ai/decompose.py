@@ -9,7 +9,8 @@ import math
 from abc import ABCMeta
 from collections import defaultdict
 from copy import deepcopy
-from typing import Iterable
+from functools import cmp_to_key
+from typing import Iterable, Optional
 
 from duguai.card.cards import *
 from duguai.card.cards import card_lt2, card_split
@@ -18,6 +19,14 @@ from duguai.card.combo import Combo
 """顺子/连对/飞机/最小的长度"""
 KIND_TO_MIN_LEN = {1: 5, 2: 3, 3: 2}
 MAX_Q = 10000
+
+
+def _most_value(x):
+    return np.argmax(np.bincount(x))
+
+
+MAX_VALUE_CMP = cmp_to_key(lambda x, y: max(x) - max(y))
+MOST_VALUE_CMP = cmp_to_key(lambda x, y: _most_value(x) - _most_value(y))
 
 
 class AbstractDecomposer(metaclass=ABCMeta):
@@ -128,7 +137,7 @@ class AbstractDecomposer(metaclass=ABCMeta):
             args_res: np.ndarray = q_list == max_q
             return actions[args_res], q_list[args_res]
 
-    def _process_state(self, state: np.ndarray, last_combo: Combo = None):
+    def _process_state(self, state: np.ndarray):
         self._state = np.array(state)
 
         # 将手牌分解成不连续的部分
@@ -138,8 +147,6 @@ class AbstractDecomposer(metaclass=ABCMeta):
 
         # 方法将输出的列表，每次调用方法前清空列表
         self._output.clear()
-
-        self._last_combo: Combo = last_combo
 
     @staticmethod
     def _max_q_actions(good_actions, q_lists, delta: int = 0, max_q: int = 0) -> np.ndarray:
@@ -189,30 +196,29 @@ class FollowDecomposer(AbstractDecomposer):
         super().__init__()
 
         # 存放带牌的列表
-        self._take_lists: Dict[int, List[np.ndarray]]
+        self._take_lists: Optional[Dict[int, List[np.ndarray]]] = None
 
         # 存放主牌的列表
-        self._main_lists: Dict[int, List[np.ndarray]]
+        self._main_lists: Optional[Dict[int, List[np.ndarray]]] = None
 
         # 存放主牌+带牌的列表
-        self._main_take_lists: Dict[int, List[np.ndarray]]
+        self._main_take_lists: Optional[Dict[int, List[np.ndarray]]] = None
 
         # 炸弹列表
-        self._bomb_list: List[np.ndarray]
+        self._bomb_list: Optional[List[np.ndarray]] = None
 
-        # 最大的出牌
-        self._max_main_takes: np.ndarray
+        # 仅维护主牌大小
+        self._max_combo: Optional[Combo] = None
 
-    def _init(self):
-        """初始化，key代表max_q - q，key越小拆得越好，越要优先选择"""
-        self._take_lists: Dict[int, List[np.ndarray]] = defaultdict(list)
-        self._main_lists: Dict[int, List[np.ndarray]] = defaultdict(list)
-        self._max_main_takes = self._last_combo.cards
+        self._last_combo: Optional[Combo] = None
+
+        self._main_kind: Optional[int] = None
+        self._take_kind: Optional[int] = None
 
     def _add_bomb(self, bomb_list: list) -> None:
         """添加炸弹"""
 
-        self._bomb_list = []
+        self._bomb_list: List[np.ndarray] = []
 
         # 添加王炸
         if len(self._ghosts) == 2:
@@ -230,30 +236,35 @@ class FollowDecomposer(AbstractDecomposer):
             for card in bomb_list:
                 self._bomb_list.append(np.array([card, card, card, card]))
 
-    def _thieve_valid_ghost(self):
-        """加入单只王"""
+    def _add_valid_ghost(self):
+        """加入单只王。在此之前先加入2"""
 
         if self._ghosts.size:
             if self._last_combo.is_solo() \
                     and self._last_combo.main_kind == 1 and self._last_combo.value < self._ghosts[-1]:
                 self._main_lists[2].append(self._ghosts[-1:])
-            elif self._last_combo.take_kind == 1:
+                self._max_combo.cards = self._ghosts[-1:]
+            elif self._max_combo.take_kind == 1:
                 self._take_lists[2].append(self._ghosts[-1:])
 
-    def _thieve_valid_card2(self):
+    def _add_valid_card2(self):
+        """加入合法的2，之后再加入王"""
         if self.card2_count:
             if self._last_combo.is_single() \
                     and self._last_combo.main_kind <= self.card2_count and self._last_combo.value < CARD_2:
-                self._main_lists[0].append(np.array([CARD_2] * self._last_combo.main_kind))
-
+                self._main_lists[self._max_combo.main_kind].append(np.array([CARD_2] * self._max_combo.main_kind))
+                self._max_combo.cards = [CARD_2] * self._max_combo.main_kind
             if self._last_combo.take_kind <= self.card2_count:
-                self._take_lists[2].append(np.array([CARD_2] * self._last_combo.take_kind))
+                # 2的价值比正常牌+1
+                self._take_lists[self._last_combo.take_kind + 1].append(np.array([CARD_2] * self._last_combo.take_kind))
 
-    def _add_takes(self, main_q: int, main_seq: np.ndarray, take_count: int) -> Tuple[int, np.ndarray]:
+    def __merge_takes_to_main_seq(self, main_q: int, main_seq: np.ndarray, take_count: int) -> Tuple[int, np.ndarray]:
         tk = 0
         main_takes: np.ndarray = np.array(main_seq)
         total_delta_q = main_q
-        for delta_q, take_list in self._take_lists.items():
+
+        # 从小到大遍历_take_lists，保证先合并最佳takes
+        for delta_q, take_list in sorted(self._take_lists.items()):
             for take in take_list:
                 if take[0] not in main_seq:
                     tk += 1
@@ -263,30 +274,40 @@ class FollowDecomposer(AbstractDecomposer):
                     return total_delta_q, main_takes
         return 0, np.array([])
 
-    def _thieve_valid_main_takes(self):
-        take_count = self._last_combo.seq_len
+    def _merge_valid_main_takes(self) -> None:
+        """将合法的主牌和带牌拼接起来"""
 
-        # 炸弹是4带2
+        # 非炸弹是3带1单/1对，炸弹是4带2
+        take_count = self._last_combo.seq_len
         if self._last_combo.main_kind == 4:
             take_count *= 2
 
         self._main_take_lists = defaultdict(list)
 
+        for take_list in self._take_lists.values():
+            take_list.sort(key=MAX_VALUE_CMP)
+
         if self._main_lists:
+
+            # 挑选最佳的main_list，并排序
             main_q = min(self._main_lists.keys())
+            self._main_lists[main_q].sort(key=MAX_VALUE_CMP)
+
             for main_seq in self._main_lists[main_q]:
-                total_delta_q, main_takes = self._add_takes(main_q, main_seq, take_count)
+                total_delta_q, main_takes = self.__merge_takes_to_main_seq(main_q, main_seq, take_count)
                 if main_takes.size > 0:
+                    # 将得到的main_takes根据价值好坏加入相应的列表中
                     self._main_take_lists[total_delta_q].append(main_takes)
 
-            self._max_main_takes = self._add_takes(0, self._max_combo.cards, take_count)[1]
+            # 得到最大的main_takes
+            self._max_main_takes = self.__merge_takes_to_main_seq(0, self._max_combo.cards, take_count)[1]
 
     @classmethod
     def _delta_q(cls, _max_q, _q):
         return (_max_q - _q) if _max_q - _q < 1000 else (_max_q - MAX_Q + 1 - _q)
 
-    def _add_to_main_lists_and_find_max(self, a: np.ndarray, q: int, max_q: int):
-
+    def _update_main_lists_and_find_max(self, a: np.ndarray, q: int, max_q: int) -> None:
+        """在action有效的情况下加入到主列表，并更新最大值"""
         main_kind = self._last_combo.main_kind
         seq_len = self._last_combo.seq_len
         value = self._last_combo.value
@@ -301,42 +322,58 @@ class FollowDecomposer(AbstractDecomposer):
                 self._max_combo = deepcopy(combo)
 
     def _best_main_takes(self):
-        self._thieve_valid_main_takes()
         if not self._main_take_lists:
             return 0, []
         min_delta_q = min(self._main_take_lists.keys())
+        self._main_take_lists[min_delta_q].sort(key=MOST_VALUE_CMP)
         return min_delta_q, self._main_take_lists[min_delta_q]
 
     def _thieve_valid_actions(self) -> Tuple[int, List[np.ndarray]]:
+        """根据last combo的限制，筛选出有效且较好的动作"""
 
-        take_kind = self._last_combo.take_kind
+        self._add_valid_card2()
+        self._add_valid_ghost()
 
-        self._thieve_valid_ghost()
-        self._thieve_valid_card2()
-
-        self._max_combo: Combo = self._last_combo
-
+        # -------------- 筛选出符合条件的main_kind和take_kind ------------------
         for lt2_state in self._lt2_states:
             if lt2_state.size > 0:
                 actions, q_lists = super(FollowDecomposer, self)._get_good_actions_and_q_lists(lt2_state, True)
                 max_q: int = max(q_lists)
                 for a, q in zip(actions, q_lists):
 
-                    # 对子可以视为2个单加入take列表
-                    if len(a) == take_kind or len(a) == 2 and take_kind == 1:
-                        self._take_lists[self._delta_q(max_q, q)].append(a[:take_kind])
+                    # 把单或者对加入_take_lists，对子可以视为2个单加入take列表
+                    if len(a) == self._take_kind or len(a) == 2 and self._take_kind == 1:
+                        self._take_lists[self._delta_q(max_q, q)].append(a[:self._take_kind])
 
-                    self._add_to_main_lists_and_find_max(a, q, max_q)
+                    # 将合法的action加入到_main_lists，同事更新最大的main_kind
+                    self._update_main_lists_and_find_max(a, q, max_q)
+
+        # -------------------------------------------------------------------
 
         if not self._main_lists:
             return 0, []
 
-        if take_kind:
+        if self._take_kind:
+            self._merge_valid_main_takes()
             return self._best_main_takes()
+        else:
+            self._max_main_takes = self._max_combo.cards
+            min_delta_q = min(self._main_lists.keys())
 
-        self._max_main_takes = self._max_combo.cards
-        min_delta_q = min(self._main_lists.keys())
-        return min_delta_q, self._main_lists[min_delta_q]
+            self._main_lists[min_delta_q].sort(key=MAX_VALUE_CMP)
+            return min_delta_q, self._main_lists[min_delta_q]
+
+    def _init(self, last_combo: Combo):
+        # 初始化，key代表max_q - q，key越小拆得越好，越要优先选择
+        self._take_lists: Dict[int, List[np.ndarray]] = defaultdict(list)
+        self._main_lists: Dict[int, List[np.ndarray]] = defaultdict(list)
+
+        # max_combo仅保留主要部分，忽略带的部分
+        self._max_combo = deepcopy(last_combo)
+        self._last_combo = last_combo
+
+        self._main_kind = self._max_combo.main_kind
+        self._take_kind = self._max_combo.take_kind
 
     def get_good_follows(self, state: np.ndarray, last_combo: Combo) \
             -> Tuple[List[np.ndarray], int, List[np.ndarray], np.ndarray]:
@@ -349,8 +386,8 @@ class FollowDecomposer(AbstractDecomposer):
         if last_combo.is_rocket():
             return [], 0, [], np.array([], dtype=int)
 
-        self._process_state(state, last_combo)
-        self._init()
+        self._process_state(state)
+        self._init(last_combo)
 
         min_delta_q, self._output = self._thieve_valid_actions()
 
@@ -425,6 +462,9 @@ class PlayHand:
             else:
                 self.other_seq.append(a)
 
+        for combos in (self._solos, self._pairs, self._trios, self._bombs, self._seq_solo5):
+            combos.sort(key=MAX_VALUE_CMP)
+
     @staticmethod
     def _choose_takes(take_list: List[np.ndarray], main_part: np.ndarray, take_count: int, split_pair: bool = False):
 
@@ -467,6 +507,7 @@ class PlayHand:
             else:
                 main_take_list.append(main_part)
         extended_target.extend(main_take_list)
+        extended_target.sort(key=MOST_VALUE_CMP)
 
     @property
     def cards(self) -> np.ndarray:

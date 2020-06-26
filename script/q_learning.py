@@ -32,8 +32,6 @@ if __name__ == '__main__':
         logging.exception(e)
         sys.exit(2)
 
-    logging.basicConfig(level=logging.DEBUG)
-
     play_q_table = load_q_table('play_q_table.npy', PlayQLHelper.STATE_LEN, PlayQLHelper.ACTION_LEN)
     follow_q_table = load_q_table('follow_q_table.npy', FollowQLHelper.STATE_LEN, FollowQLHelper.ACTION_LEN)
 
