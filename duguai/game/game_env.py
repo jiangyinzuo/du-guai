@@ -263,7 +263,7 @@ class GameEnv:
         当前打牌的身份与玩家id
         @param player 0：当前玩家， 1：下家， -1：上家
         """
-        return ('[地主' if self.landlord == (self.turn + player + 3) % 3 else '[农民') + ' 玩家%d] ' % self.turn
+        return ('[地主' if self.landlord == (self.turn + player + 3) % 3 else '[农民') + '] '
 
     def __call_landlord(self):
 

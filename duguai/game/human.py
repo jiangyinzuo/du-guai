@@ -5,6 +5,7 @@
 """
 from typing import Iterator, Union, Set
 
+from duguai import mode
 from duguai.card.cards import cards_view
 from duguai.utils import is_in
 from ..game.game_env import GameEnv, _remove_last_combo, SPLIT_LINE
@@ -41,16 +42,16 @@ class Human(GameEnv.AbstractPlayer, GameEnv.MessageObserver):
         else:
             print(self.game_env.user_info(0) + '空过')
         print(SPLIT_LINE)
+        if mode == 'debug':
+            print(self.game_env.cards[(self.game_env.turn + 1) % 3])
 
     def update_game_over(self, victors: Set[int]) -> None:
         """
         GameEnv通知玩家游戏结束
         @param victors: 胜利者
         """
-        i = 0
-        for card in self.game_env.cards:
-            print(self.game_env.user_info(i) + '的牌: ', card)
-            i += 1
+        for i in range(3):
+            print('玩家' + str(i) + '的牌: ', self.game_env.cards[i])
         print('玩家', victors, '获胜')
 
     def call_landlord(self) -> bool:
