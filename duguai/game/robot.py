@@ -24,17 +24,24 @@ class Robot(GameEnv.AbstractPlayer):
     @author 江胤佐
     """
 
-    def __init__(self, game_env: GameEnv, order: int, agent: Robot.Agent):
-        super().__init__(game_env, order)
+    def __init__(self, game_env: GameEnv, agent: Robot.Agent, name: str):
+        super().__init__(game_env, name)
         self.svc = get_svc()
-        self.play_provider = PlayProvider(order)
-        self.follow_provider = FollowProvider(order)
+        self.play_provider = PlayProvider(self._order)
+        self.follow_provider = FollowProvider(self._order)
         self.__landlord_id: int = 0
         self._agent: Robot.Agent = agent
 
     def update_game_over(self, victors: Set[int]) -> None:
         """训练时，胜利奖励40，失败惩罚-40"""
-        if self.order in victors:
+        if self._order in victors:
+
+            # 统计获胜次数
+            if len(victors) == 2:
+                self._farmer_victory_count += 1
+            else:
+                self._landlord_victory_count += 1
+
             self._agent.update_game_over(40)
         else:
             self._agent.update_game_over(-40)

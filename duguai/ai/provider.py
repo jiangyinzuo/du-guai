@@ -17,6 +17,17 @@ def _to_le(number: int, ceil: int) -> int:
     return number if number < ceil else ceil
 
 
+def _hand_to_state(hand: int) -> int:
+    if hand <= 5:
+        return hand - 1
+    elif hand <= 9:
+        return 5
+    elif hand <= 14:
+        return 6
+    else:
+        return 7
+
+
 class AbstractProvider(metaclass=ABCMeta):
     """
     给AI提供state和action的类
@@ -81,6 +92,7 @@ class PlayProvider(AbstractProvider):
         【15】出其它连对顺子飞机
         【16】 出4带2
         """
+        BAD_ACTION = (0, 4, 10, 11, 12)
 
         MIN_SOLO = 0
         MAX_SOLO = 4
@@ -126,7 +138,7 @@ class PlayProvider(AbstractProvider):
         def _add_actions(self, actions: List[np.ndarray], total: int, base: int) -> None:
             if actions:
                 for offset in range(total):
-                    if len(actions) >= offset:
+                    if len(actions) >= offset + 1:
                         self._action_list.append(base + offset)
                     else:
                         return
@@ -174,15 +186,15 @@ class PlayProvider(AbstractProvider):
         炸弹数量（大于2记作2）    bomb_count            [0, 2]
         是否有王炸              rocket                [0, 1]
         玩家位置                player               [0, 2]
-        上家手牌数-1            hand_p(大于5都记作5)    [0, 5]
-        下家手牌数-1            hand_n(大于5都记作5)    [0, 5]
+        _hand_to_state(上家手牌数) hand_p             [0, 7]
+        _hand_to_state(下家手牌数)   hand_n            [0, 7]
         ------------------------------------------------------------
 
         f1_min(x) = switch mean(x[:2]):  [1, 4] -> 0; [5, 8] -> 1; [9,  12] -> 2; [13, 15] -> 3
         f1_max(x) = switch max(x):       [1, 4] -> 0; [5, 8] -> 1; [9,  12] -> 2; [13, 15] -> 3
         f2_min(x) = switch mean(x[:2]):  [1, 5] -> 0; [6,10] -> 1; [11, 13] -> 2
         f2_max(x) = switch max(x):       [1, 5] -> 0; [6,10] -> 1; [11, 13] -> 2
-        总共有 (4+3+2+1)*(3+2+1)*3^2*2*3*2*3*6*6 = 699840 种状态
+        总共有 (4+3+2+1)*(3+2+1)*3^2*2*3*2*3*8*8 = 1244160 种状态
         """
         STATE_LEN = 12
 
@@ -246,7 +258,7 @@ class PlayProvider(AbstractProvider):
 
             state_vector[8] = int(hand.has_rocket)
             state_vector[9:12] = \
-                self._outer.calc_identity(self._outer._player_id), _to_le(hand_p - 1, 5), _to_le(hand_n - 1, 5)
+                self._outer.calc_identity(self._outer._player_id), _hand_to_state(hand_p), _hand_to_state(hand_n)
 
             return state_vector
 
@@ -262,12 +274,12 @@ class FollowProvider(AbstractProvider):
     最佳拆牌的delta_q       delta_q 越大越拆得差(大于5都记作5)         [0, 5]
     玩家身份                player                                 [0, 2]
     上一个牌是谁打的         last_combo_owner                       [0, 2]
-    上家手牌数-1            hand_p(大于5都记作5)                    [0, 5]
-    下家手牌数-1            hand_n(大于5都记作5)                    [0, 5]
+    _hand_to_state(上家手牌数)   hand_p                            [0, 7]
+    _hand_to_state(上家手牌数)     hand_n                         [0, 7]
     上一个牌的数量    last_combo_len(大于5都记作5)                   [0, 5]
 
     ---------------------------------------------------------------------------
-
+    6*3*3*8*8*6 = 20736
     AI跟牌时的动作被化简为以下几个：
 
     0：空过
@@ -285,6 +297,8 @@ class FollowProvider(AbstractProvider):
     ROCKET = 8
 
     STATE_LEN = 6
+
+    BAD_ACTION = (0, 5, 6, 7, 8)
 
     ACTION_VIEW = (
         '空过', '跟最小', '跟较小', '跟较大', '跟最大', '强行拆牌跟最大', '小炸弹', '大炸弹', '王炸'
@@ -325,7 +339,7 @@ class FollowProvider(AbstractProvider):
         @return state, bombs, good_actions, max_actions, action_list
         """
 
-        bombs, min_delta_q, good_actions, max_actions = self._follow_decomposer.get_good_follows(cards, last_combo)
+        bombs, min_delta_q, good_actions, max_action = self._follow_decomposer.get_good_follows(cards, last_combo)
 
         action_vector = [self.PASS]
         if good_actions:
@@ -334,7 +348,8 @@ class FollowProvider(AbstractProvider):
                     action_vector.append(a)
                 else:
                     break
-        if max_actions.size > 0:
+
+        if max_action.size > 0:
             action_vector.append(self.FORCE_MAX)
 
         self.__add_bomb(action_vector, bombs)
@@ -342,8 +357,8 @@ class FollowProvider(AbstractProvider):
         state = [_to_le(min_delta_q, 5),
                  self.calc_identity(self._player_id),
                  self.calc_identity(last_combo_owner_id),
-                 _to_le(hand_p - 1, 5),
-                 _to_le(hand_n - 1, 5),
+                 _hand_to_state(hand_p),
+                 _hand_to_state(hand_n),
                  _to_le(last_combo.cards.size, 5)]
 
-        return state, bombs, good_actions, max_actions, action_vector
+        return state, bombs, good_actions, max_action, action_vector

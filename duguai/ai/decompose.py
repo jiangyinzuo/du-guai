@@ -416,6 +416,13 @@ class PlayHand:
         self._merge_main_takes(self._singles[2], self._trios_take)
         self._merge_main_takes(self._singles[3], self._bombs_take)
 
+        i = 0
+        while i < len(self._bombs_take):
+            if self._bombs_take[i].size <= 4:
+                del self._bombs_take[i]
+            else:
+                i += 1
+
     @staticmethod
     def _choose_takes(take_list: List[np.ndarray], main_part: np.ndarray, take_count: int, split_pair: bool = False):
 

@@ -7,7 +7,8 @@ from __future__ import annotations
 
 import abc
 from functools import wraps
-from typing import List, Iterator, Union, Set
+from random import shuffle
+from typing import List, Iterator, Union, Set, Tuple
 
 import numpy as np
 
@@ -69,14 +70,36 @@ class GameEnv:
         玩家抽象类。定义了玩家叫地主、跟牌、先手出牌方法。
         """
 
-        def __init__(self, game_env: GameEnv, order: int):
+        def __init__(self, game_env: GameEnv, name: str):
             self.game_env = game_env
-            self.order = order
+            self._order: int = -1
             self.last_combo: Combo = Combo()
+            self._name = name
+
+            # 统计获胜场次
+            self._farmer_victory_count: int = 0
+            self._landlord_victory_count: int = 0
 
         def ready(self):
             """游戏开始前的初始化操作"""
             self.last_combo: Combo = Combo()
+
+        def set_order(self, v: int):
+            """设置玩家叫地主的顺序"""
+            self._order = v
+
+        @property
+        def name(self):
+            """玩家名称"""
+            return self._name
+
+        @property
+        def victory_count(self) -> Tuple[int, int]:
+            """
+            该对象初始化以来累计获胜次数
+            @return: 作为地主获胜次数, 作为农民获胜次数
+            """
+            return self._landlord_victory_count, self._farmer_victory_count
 
         @property
         def hand(self) -> np.ndarray:
@@ -84,11 +107,11 @@ class GameEnv:
             玩家当前的手牌。
             @return: numpy数组，按从小到大排列
             """
-            return self.game_env.cards[self.order]
+            return self.game_env.cards[self._order]
 
         @hand.setter
         def hand(self, v):
-            self.game_env.cards[self.order] = v
+            self.game_env.cards[self._order] = v
 
         @abc.abstractmethod
         def call_landlord(self) -> bool:
@@ -171,8 +194,14 @@ class GameEnv:
         # 上一个Combo（除了初始状态，不含打牌过程中产生的PASS）
         self._last_combo: Combo = Combo()
 
-        for p in self._players:
-            p.ready()
+        assert len(self._players) == 3, '开始游戏前先添加玩家'
+
+        shuffle(self._players)
+        order = 0
+        for player in self._players:
+            player.set_order(order)
+            order += 1
+            player.ready()
 
     def add_players(self,
                     p1: Union[GameEnv.MessageObserver, GameEnv.AbstractPlayer],
@@ -216,7 +245,7 @@ class GameEnv:
         开始游戏
         """
         self._init()
-        assert len(self._players) == 3, '开始游戏前先添加玩家'
+
         self.__call_landlord()
 
         self.notify(GameEnv.U_MSG, msgs=self._start_msg())
@@ -258,12 +287,22 @@ class GameEnv:
         """
         return self._last_combo_owner
 
-    def user_info(self, player: int) -> str:
+    def abs_user_info(self, play_order: int):
         """
-        当前打牌的身份与玩家id
-        @param player 0：当前玩家， 1：下家， -1：上家
+        根据绝对位置(开局叫地主顺序)获取 当前打牌的身份与玩家id
+        @param play_order: 叫地主顺序，可取0，1，2
+        @return: 玩家信息
         """
-        return ('[地主' if self.landlord == (self.turn + player + 3) % 3 else '[农民') + '] '
+        return ('[地主' if self.landlord == play_order else '[农民') + ' 玩家%d] ' % play_order
+
+    def rel_user_info(self, relative_order: int) -> str:
+        """
+        根据相对位置获取 当前打牌的身份与玩家id
+        @param relative_order 0：当前玩家， 1：下家， -1：上家
+        @return: 玩家信息
+        """
+        play_order = (self.turn + relative_order + 3) % 3
+        return self.abs_user_info(play_order)
 
     def __call_landlord(self):
 
@@ -282,7 +321,7 @@ class GameEnv:
                     self.cards[self.turn].sort()
                     self._last_combo_owner = self.turn
                     break
-
+                self.notify(GameEnv.U_MSG, msgs='玩家%d不叫' % self.turn)
                 self.turn = (self.turn + 1) % 3
 
     def __notify_game_over(self) -> None:
@@ -298,13 +337,13 @@ class GameEnv:
     def __round_robin(self):
         while True:
             if self._last_combo_owner == self.turn:
-                self.notify(GameEnv.U_MSG, msgs=self.user_info(0) + '出牌')
+                self.notify(GameEnv.U_MSG, msgs=self.rel_user_info(0) + '出牌')
                 self._players[self.turn].play()
             else:
                 self.notify(
                     GameEnv.U_MSG,
-                    msgs=self.user_info(0) + '跟牌(先前的牌由 玩家{} 打出 {})'.format(
-                        self._last_combo_owner, self._last_combo.cards_view)
+                    msgs=self.rel_user_info(0) + '跟牌(先前的牌由 {} 打出 {})'.format(
+                        self.abs_user_info(self._last_combo_owner), self._last_combo.cards_view)
                 )
                 self._players[self.turn].follow()
 

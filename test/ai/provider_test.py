@@ -39,6 +39,10 @@ def test_sorted_follow():
     result = follow_provider.provide(0, 18, 17, combo.cards, combo1)
     print(result)
 
+    combo.cards = [6, 6, 7, 7, 9, 9, 9, 9, 8, 8, 8, 8]
+    result = follow_provider.provide(0, 18, 17, combo.cards, combo1)
+    print(result)
+
     combo.cards_view = '3 3 7 7 7'
     combo1.cards_view = '2 2 8 8 8 4 4'
     result = follow_provider.provide(0, 18, 17, combo1.cards, combo)
@@ -66,4 +70,10 @@ def test_bomb():
     play_provider = PlayProvider(1)
     play_provider.add_landlord_id(2)
     res = play_provider.provide(np.array([3, 3, 3, 3, 4, 4, 4, 4, 14, 15]), 10, 10)
+    print(res)
+
+    res = play_provider.provide(np.array([4, 4, 4, 4, 14, 15]), 10, 10)
+    print(res)
+
+    res = play_provider.provide(np.array([3, 3, 4]), 10, 10)
     print(res)

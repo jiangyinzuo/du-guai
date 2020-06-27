@@ -69,7 +69,11 @@ class QLExecuteAgent(AbstractQLAgent):
                 for a in actions1:
                     logging.info(FollowProvider.ACTION_VIEW[a] + ' ' + str(q_table1[state1, a]))
             logging.info('-------------------------------')
-        return actions1[int(np.argmax(q_table1[state1, actions1]))]
+
+        q_list = q_table1[state1, actions1]
+        max_q = np.max(q_list)
+        approximate_max_actions = np.array(actions1)[q_list + 0.1 >= max_q]
+        return np.random.choice(approximate_max_actions, 1)[0]
 
 
 class QLTrainingAgent(AbstractQLAgent):
@@ -99,7 +103,10 @@ class QLTrainingAgent(AbstractQLAgent):
         """
         if random() < self._epsilon:
             return sample(actions, 1)[0]
-        return actions[int(np.argmax(q_table[state, actions]))]
+        q_list = q_table[state, actions]
+        max_a = np.max(q_list)
+        max_actions = np.array(actions)[q_list == max_a]
+        return np.random.choice(max_actions, 1)[0]
 
     def _update_q_table0(self, state1: int, actions1: List[int], q_table1: np.ndarray):
         """使用Q-Learning算法更新Q表"""
@@ -112,6 +119,17 @@ class QLTrainingAgent(AbstractQLAgent):
         """游戏结束时，更新Q表"""
         q_value0 = self.q_table0[self.state0, self.action0]
         self.q_table0[self.state0, self.action0] += self._alpha * (reward - q_value0)
+
+    def _update_reward0(self, actions1: List[int], state_vector1):
+        if len(state_vector1) == PlayQLHelper.STATE_VECTOR_SIZE:
+            if self.action0 in PlayProvider.ActionProvider.BAD_ACTION:
+                self.reward0 = (-1 - len(actions1) * 0.1)
+                return
+        elif self.action0 in FollowProvider.BAD_ACTION:
+            self.reward0 = (-1 - len(actions1) * 0.1)
+            return
+
+        self.reward0 = -1
 
     def exec(self, state_vector1: Union[np.ndarray, List[int]], actions1: List[int]) -> int:
         """
@@ -127,7 +145,7 @@ class QLTrainingAgent(AbstractQLAgent):
         self.q_table0 = q_table1
         self.state0 = state1
         self.action0 = self._epsilon_greedy(q_table1, actions1, state1)
-        self.reward0 = -1 if self.action0 != FollowProvider.PASS else (-1 - len(actions1) * 0.1)
+        self._update_reward0(actions1, state_vector1)
         return self.action0
 
 
@@ -152,40 +170,52 @@ class AbstractQLHelper(metaclass=ABCMeta):
 class FollowQLHelper(AbstractQLHelper):
     """跟牌时Q-Learning的辅助类"""
 
-    STATE_LEN = 11664
+    STATE_LEN = 20736
     ACTION_LEN = 9
+
+    WEIGHT = (3456, 1152, 384, 48, 6, 1)
 
     @classmethod
     def state_to_int(cls, vector: Union[List[int], np.ndarray]) -> int:
         """
-        状态向量的每一个取值范围分别为0到 5，2，2，5，5，5
-        @return: [0, 11663]中的一个整数
+        状态向量的每一个取值范围分别为0到 5，2，2，7，7，5
+        @return: [0, 20735]中的一个整数
         """
-        return vector[-6] * 1944 + vector[-5] * 648 + vector[-4] * 216 + vector[-3] * 36 + vector[-2] * 6 + vector[-1]
+        return sum(vector[i] * cls.WEIGHT[i] for i in range(6))
 
 
 class PlayQLHelper(AbstractQLHelper):
     """出牌时Q-Learning的辅助类"""
 
     __N_MAP = {0: 0, 1: 1, 2: 3, 3: 6}
-    __V_WEIGHT_MAP = {11: 1, 10: 6, 9: 36, 8: 108, 7: 216, 6: 648, 5: 1296, 4: 3888}
+    __V_WEIGHT_MAP = {11: 1,
+                      10: 8,
+                      9: 8 * 8,
+                      8: 8 * 8 * 3,
+                      7: 8 * 8 * 3 * 2,
+                      6: 8 * 8 * 3 * 2 * 3,
+                      5: 8 * 8 * 3 * 2 * 3 * 2,
+                      4: 8 * 8 * 3 * 2 * 3 * 2 * 3,
+                      1: 8 * 8 * 3 * 2 * 3 * 2 * 3 * 3,
+                      0: 8 * 8 * 3 * 2 * 3 * 2 * 3 * 3 * 6}
 
     STATE_VECTOR_SIZE = 12
 
-    STATE_LEN = 699840
+    STATE_LEN = 1244160
     ACTION_LEN = 17
 
     @classmethod
     def state_to_int(cls, vector: Union[List[int], np.ndarray]) -> int:
         """
-        (4+3+2+1)*(3+2+1)*3^2*2*3*2*3*6*6 = 699840
-        @return: [0, 699839]中的一个整数
+        (4+3+2+1)*(3+2+1)*3^2*2*3*2*3*8*8 = 1244160
+        @return: [0, 1244159]中的一个整数
         """
 
         n0 = vector[0] + cls.__N_MAP[vector[1]]
         n1 = vector[2] + cls.__N_MAP[vector[3]]
 
-        return n0 * 69984 + n1 * 11664 + sum(vector[i] * cls.__V_WEIGHT_MAP[i] for i in range(4, 12))
+        return n0 * cls.__V_WEIGHT_MAP[0] + n1 * cls.__V_WEIGHT_MAP[1] + sum(
+            vector[i] * cls.__V_WEIGHT_MAP[i] for i in range(4, 12))
 
 
 def load_q_table(file_name: str, row: int, col: int) -> np.ndarray:

@@ -17,8 +17,8 @@ class Human(GameEnv.AbstractPlayer, GameEnv.MessageObserver):
     @author 江胤佐
     """
 
-    def __init__(self, game_env: GameEnv, order: int):
-        super().__init__(game_env, order)
+    def __init__(self, game_env: GameEnv, name: str):
+        super().__init__(game_env, name)
 
     def update_msg(self, msgs: Union[Iterator, str]) -> None:
         """
@@ -36,11 +36,11 @@ class Human(GameEnv.AbstractPlayer, GameEnv.MessageObserver):
         GameEnv更新了上一次出牌操作
         """
         if self.game_env.last_combo_owner_id == self.game_env.turn:
-            print(self.game_env.user_info(0) +
+            print(self.game_env.rel_user_info(0) +
                   '打出了' +
                   self.game_env.last_combo.cards_view)
         else:
-            print(self.game_env.user_info(0) + '空过')
+            print(self.game_env.rel_user_info(0) + '空过')
         print(SPLIT_LINE)
         if mode == 'debug':
             print(self.game_env.cards[(self.game_env.turn + 1) % 3])
@@ -51,15 +51,20 @@ class Human(GameEnv.AbstractPlayer, GameEnv.MessageObserver):
         @param victors: 胜利者
         """
         for i in range(3):
-            print('玩家' + str(i) + '的牌: ', self.game_env.cards[i])
+            print('玩家' + self.game_env.abs_user_info(i) + '的牌: ', self.game_env.cards[i])
         print('玩家', victors, '获胜')
+        if self._order in victors:
+            if len(victors) == 1:
+                self._landlord_victory_count += 1
+            else:
+                self._farmer_victory_count += 1
 
     def call_landlord(self) -> bool:
         """
         玩家叫地主
         @return: 叫: True; 不叫: False
         """
-        print('玩家{}的手牌:'.format(self.order), cards_view(self.hand))
+        print('玩家{}的手牌:'.format(self._order), cards_view(self.hand))
         return input('>>> (输入1叫地主, 输入其它键不叫地主)') == '1'
 
     def update_landlord(self, landlord_id: int) -> None:
@@ -74,9 +79,9 @@ class Human(GameEnv.AbstractPlayer, GameEnv.MessageObserver):
     def __get_input(self):
         return input('你的手牌: {}\n上家 {} 手牌数量: {}\n下家 {} 手牌数量: {}\n>>> (输入要出的牌，以空格分隔。直接回车代表空过。)'
                      .format(cards_view(self.hand),
-                             self.game_env.user_info(-1),
+                             self.game_env.rel_user_info(-1),
                              self.game_env.hand_p,
-                             self.game_env.user_info(1),
+                             self.game_env.rel_user_info(1),
                              self.game_env.hand_n)).upper()
 
     @_remove_last_combo

@@ -14,6 +14,9 @@ if __name__ == '__main__':
     from duguai.game.robot import Robot
     from duguai.logger import log_locals
 
+    if mode == 'debug':
+        logging.basicConfig(level=logging.DEBUG)
+
     train_times: int = 10
     try:
         opts, args = getopt(sys.argv[1:], 't:')
@@ -37,13 +40,13 @@ if __name__ == '__main__':
 
     game_env = GameEnv()
 
-    agent0 = QLTrainingAgent(play_q_table, follow_q_table, 0.5, 0.4)
-    agent1 = QLTrainingAgent(play_q_table, follow_q_table, 0.5, 0.4)
-    agent2 = QLTrainingAgent(play_q_table, follow_q_table, 0.5, 0.4)
+    agent0 = QLTrainingAgent(play_q_table, follow_q_table, 0.5, 0.8)
+    agent1 = QLTrainingAgent(play_q_table, follow_q_table, 0.5, 0.8)
+    agent2 = QLTrainingAgent(play_q_table, follow_q_table, 0.5, 0.8)
 
-    robot0 = Robot(game_env, 0, agent0)
-    robot1 = Robot(game_env, 1, agent1)
-    robot2 = Robot(game_env, 2, agent2)
+    robot0 = Robot(game_env, agent0, 'r0')
+    robot1 = Robot(game_env, agent1, 'r1')
+    robot2 = Robot(game_env, agent2, 'r2')
     game_env.add_players(robot0, robot1, robot2)
 
     start_time = time()
