@@ -79,6 +79,7 @@ class QLExecuteAgent(AbstractQLAgent):
 class QLTrainingAgent(AbstractQLAgent):
     """
     训练Q-learning算法的智能体
+    Q(S, A) := Q(S, A) + alpha * [(R + gamma * max Q(S', a) - Q(S, A)]
     @note: 该类不负责持久化保存训练完的Q表
     """
 
