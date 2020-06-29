@@ -49,7 +49,7 @@ if __name__ == '__main__':
             if opt == '-t':
                 t = arg
     except GetoptError as e:
-        print('python q_learning.py -t <train_times>')
+        print('python benchmark.py -t <train_times>')
         sys.exit(2)
 
     _play_q_table_path = '../dataset/play_q_table' + t + '.npy'

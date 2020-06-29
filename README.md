@@ -17,13 +17,23 @@ cd duguai
 python main.py
 ```
 
-运行脚本文件
+运行Q-Learnig脚本训练数据
 ```bash
 cd script
 
 # Q-Learning模型训练
-python q_learning.py
+python q_learning.py -t <训练次数>
 ```
+
+运行基准测试
+
+```
+cd script
+
+python benchmark.py -t <需要测试的AI的训练次数>
+```
+
+
 
 ## 项目目录说明
 
@@ -40,8 +50,12 @@ python q_learning.py
 调试/生产模式：mode = debug/prod
 开启/关闭测试：test = on/off
 
+## 算法设计
+
+[ALGORITHM.md](./doc/ALGORITHM.md)
+
 ## 斗地主规则
-[RULES.md](./RULES.md)
+[RULES.md](./doc/RULES.md)
 
 ## 训练结果
 ### 对局1000次的基准测试
